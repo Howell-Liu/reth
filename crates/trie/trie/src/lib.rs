@@ -50,9 +50,6 @@ pub use progress::{IntermediateStateRootState, StateRootProgress};
 /// Trie calculation stats.
 pub mod stats;
 
-// re-export for convenience
-pub use reth_trie_common::*;
-
 /// Trie calculation metrics.
 #[cfg(feature = "metrics")]
 pub mod metrics;

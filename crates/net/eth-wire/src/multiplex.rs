@@ -312,14 +312,13 @@ impl ProtocolProxy {
             return Err(io::ErrorKind::InvalidInput.into())
         }
 
-        let offset = self.shared_cap.relative_message_id_offset();
-        if offset == 0 {
-            return Ok(msg);
-        }
+        let mut masked_bytes = BytesMut::zeroed(msg.len());
+        masked_bytes[0] = msg[0]
+            .checked_add(self.shared_cap.relative_message_id_offset())
+            .ok_or(io::ErrorKind::InvalidInput)?;
 
-        let mut masked = Vec::from(msg);
-        masked[0] = masked[0].checked_add(offset).ok_or(io::ErrorKind::InvalidInput)?;
-        Ok(masked.into())
+        masked_bytes[1..].copy_from_slice(&msg[1..]);
+        Ok(masked_bytes.freeze())
     }
 
     /// Unmasks the message ID of a message received from the wire.

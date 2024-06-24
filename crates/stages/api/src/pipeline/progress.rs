@@ -1,5 +1,5 @@
 use crate::{util::opt, ControlFlow};
-use alloy_primitives::BlockNumber;
+use reth_primitives::BlockNumber;
 
 #[derive(Debug, Default)]
 pub(crate) struct PipelineProgress {

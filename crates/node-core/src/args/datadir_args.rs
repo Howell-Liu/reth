@@ -2,7 +2,7 @@
 
 use crate::dirs::{ChainPath, DataDirPath, MaybePlatformPath};
 use clap::Args;
-use reth_chainspec::Chain;
+use reth_primitives::Chain;
 use std::path::PathBuf;
 
 /// Parameters for datadir configuration

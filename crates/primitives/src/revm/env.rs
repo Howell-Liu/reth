@@ -1,16 +1,13 @@
 use crate::{
     recover_signer_unchecked,
-    revm_primitives::{BlockEnv, Env, TxEnv},
-    Address, Bytes, Header, Transaction, TransactionSignedEcRecovered, TxKind, B256, U256,
+    revm_primitives::{BlockEnv, Env, TransactTo, TxEnv},
+    Address, Bytes, Chain, ChainSpec, Header, Transaction, TransactionSignedEcRecovered, TxKind,
+    B256, U256,
 };
-use reth_chainspec::{Chain, ChainSpec};
 
 use alloy_eips::{eip4788::BEACON_ROOTS_ADDRESS, eip7002::WITHDRAWAL_REQUEST_PREDEPLOY_ADDRESS};
 #[cfg(feature = "optimism")]
 use revm_primitives::OptimismFields;
-
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
 
 /// Fill block environment from Block.
 pub fn fill_block_env(
@@ -76,7 +73,7 @@ pub fn block_coinbase(chain_spec: &ChainSpec, header: &Header, after_merge: bool
 }
 
 /// Error type for recovering Clique signer from a header.
-#[derive(Debug, thiserror_no_std::Error)]
+#[derive(Debug, thiserror::Error)]
 pub enum CliqueSignerRecoveryError {
     /// Header extradata is too short.
     #[error("Invalid extra data length")]
@@ -182,7 +179,7 @@ fn fill_tx_env_with_system_contract_call(
 ) {
     env.tx = TxEnv {
         caller,
-        transact_to: TxKind::Call(contract),
+        transact_to: TransactTo::Call(contract),
         // Explicitly set nonce to None so revm does not do any nonce checks
         nonce: None,
         gas_limit: 30_000_000,
@@ -246,8 +243,8 @@ where
             tx_env.gas_price = U256::from(tx.gas_price);
             tx_env.gas_priority_fee = None;
             tx_env.transact_to = match tx.to {
-                TxKind::Call(to) => TxKind::Call(to),
-                TxKind::Create => TxKind::Create,
+                TxKind::Call(to) => TransactTo::Call(to),
+                TxKind::Create => TransactTo::create(),
             };
             tx_env.value = tx.value;
             tx_env.data = tx.input.clone();
@@ -262,8 +259,8 @@ where
             tx_env.gas_price = U256::from(tx.gas_price);
             tx_env.gas_priority_fee = None;
             tx_env.transact_to = match tx.to {
-                TxKind::Call(to) => TxKind::Call(to),
-                TxKind::Create => TxKind::Create,
+                TxKind::Call(to) => TransactTo::Call(to),
+                TxKind::Create => TransactTo::create(),
             };
             tx_env.value = tx.value;
             tx_env.data = tx.input.clone();
@@ -285,8 +282,8 @@ where
             tx_env.gas_price = U256::from(tx.max_fee_per_gas);
             tx_env.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas));
             tx_env.transact_to = match tx.to {
-                TxKind::Call(to) => TxKind::Call(to),
-                TxKind::Create => TxKind::Create,
+                TxKind::Call(to) => TransactTo::Call(to),
+                TxKind::Create => TransactTo::create(),
             };
             tx_env.value = tx.value;
             tx_env.data = tx.input.clone();
@@ -307,7 +304,7 @@ where
             tx_env.gas_limit = tx.gas_limit;
             tx_env.gas_price = U256::from(tx.max_fee_per_gas);
             tx_env.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas));
-            tx_env.transact_to = TxKind::Call(tx.to);
+            tx_env.transact_to = TransactTo::Call(tx.to);
             tx_env.value = tx.value;
             tx_env.data = tx.input.clone();
             tx_env.chain_id = Some(tx.chain_id);
@@ -329,7 +326,10 @@ where
             tx_env.gas_limit = tx.gas_limit;
             tx_env.gas_price = U256::ZERO;
             tx_env.gas_priority_fee = None;
-            tx_env.transact_to = tx.to;
+            match tx.to {
+                TxKind::Call(to) => tx_env.transact_to = TransactTo::Call(to),
+                TxKind::Create => tx_env.transact_to = TransactTo::create(),
+            }
             tx_env.value = tx.value;
             tx_env.data = tx.input.clone();
             tx_env.chain_id = None;
@@ -371,7 +371,7 @@ pub fn fill_op_tx_env<T: AsRef<Transaction>>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reth_chainspec::GOERLI;
+    use crate::GOERLI;
 
     #[test]
     fn test_recover_genesis_goerli_signer() {

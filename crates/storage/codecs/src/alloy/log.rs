@@ -10,12 +10,13 @@ impl Compact for LogData {
     where
         B: BufMut + AsMut<[u8]>,
     {
-        let mut buffer = Vec::new();
+        let mut buffer = bytes::BytesMut::new();
         let (topics, data) = self.split();
         topics.specialized_to_compact(&mut buffer);
         data.to_compact(&mut buffer);
-        buf.put(&buffer[..]);
-        buffer.len()
+        let total_length = buffer.len();
+        buf.put(buffer);
+        total_length
     }
 
     fn from_compact(mut buf: &[u8], _: usize) -> (Self, &[u8]) {
@@ -32,11 +33,12 @@ impl Compact for Log {
     where
         B: BufMut + AsMut<[u8]>,
     {
-        let mut buffer = Vec::new();
+        let mut buffer = bytes::BytesMut::new();
         self.address.to_compact(&mut buffer);
         self.data.to_compact(&mut buffer);
-        buf.put(&buffer[..]);
-        buffer.len()
+        let total_length = buffer.len();
+        buf.put(buffer);
+        total_length
     }
 
     fn from_compact(mut buf: &[u8], _: usize) -> (Self, &[u8]) {

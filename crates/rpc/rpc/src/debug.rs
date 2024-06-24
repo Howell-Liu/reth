@@ -1,7 +1,7 @@
 use crate::{
     eth::{
         error::{EthApiError, EthResult},
-        revm_utils::prepare_call_env,
+        revm_utils::{prepare_call_env, EvmOverrides},
         EthTransactions,
     },
     result::{internal_rpc_err, ToRpcResult},
@@ -20,7 +20,6 @@ use reth_provider::{
 use reth_revm::database::StateProviderDatabase;
 use reth_rpc_api::DebugApiServer;
 use reth_rpc_types::{
-    state::EvmOverrides,
     trace::geth::{
         BlockTraceResult, FourByteFrame, GethDebugBuiltInTracerType, GethDebugTracerType,
         GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, NoopFrame, TraceResult,

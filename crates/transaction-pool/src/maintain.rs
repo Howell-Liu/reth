@@ -11,7 +11,6 @@ use futures_util::{
     future::{BoxFuture, Fuse, FusedFuture},
     FutureExt, Stream, StreamExt,
 };
-use reth_execution_types::ExecutionOutcome;
 use reth_fs_util::FsPathError;
 use reth_primitives::{
     Address, BlockHash, BlockNumber, BlockNumberOrTag, FromRecoveredPooledTransaction,
@@ -19,8 +18,8 @@ use reth_primitives::{
     TryFromRecoveredTransaction,
 };
 use reth_provider::{
-    BlockReaderIdExt, CanonStateNotification, ChainSpecProvider, ProviderError,
-    StateProviderFactory,
+    BlockReaderIdExt, BundleStateWithReceipts, CanonStateNotification, ChainSpecProvider,
+    ProviderError, StateProviderFactory,
 };
 use reth_tasks::TaskSpawner;
 use std::{
@@ -557,9 +556,9 @@ where
 
 /// Extracts all changed accounts from the `BundleState`
 fn changed_accounts_iter(
-    execution_outcome: &ExecutionOutcome,
+    state: &BundleStateWithReceipts,
 ) -> impl Iterator<Item = ChangedAccount> + '_ {
-    execution_outcome
+    state
         .accounts_iter()
         .filter_map(|(addr, acc)| acc.map(|acc| (addr, acc)))
         .map(|(address, acc)| ChangedAccount { address, nonce: acc.nonce, balance: acc.balance })
@@ -682,9 +681,8 @@ mod tests {
         blobstore::InMemoryBlobStore, validate::EthTransactionValidatorBuilder,
         CoinbaseTipOrdering, EthPooledTransaction, Pool, PoolTransaction, TransactionOrigin,
     };
-    use reth_chainspec::MAINNET;
     use reth_fs_util as fs;
-    use reth_primitives::{hex, PooledTransactionsElement, U256};
+    use reth_primitives::{hex, PooledTransactionsElement, MAINNET, U256};
     use reth_provider::test_utils::{ExtendedAccount, MockEthProvider};
     use reth_tasks::TaskManager;
 

@@ -6,12 +6,10 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
 };
 
-use alloy_primitives::Bytes;
 use derive_more::Display;
 use discv5::ListenConfig;
 use multiaddr::{Multiaddr, Protocol};
-use reth_ethereum_forks::{EnrForkIdEntry, ForkId};
-use reth_network_peers::NodeRecord;
+use reth_primitives::{Bytes, EnrForkIdEntry, ForkId, NodeRecord};
 use tracing::warn;
 
 use crate::{enr::discv4_id_to_multiaddr_id, filter::MustNotIncludeKeys, NetworkStackId};
@@ -190,7 +188,7 @@ impl ConfigBuilder {
         self
     }
 
-    /// Sets the number of times at which to run boost lookup queries to bootstrap the node.
+    /// Sets the the number of times at which to run boost lookup queries to bootstrap the node.
     pub const fn bootstrap_lookup_countdown(mut self, counts: u64) -> Self {
         self.bootstrap_lookup_countdown = Some(counts);
         self
@@ -449,7 +447,7 @@ impl BootNode {
 mod test {
     use std::net::SocketAddrV4;
 
-    use alloy_primitives::hex;
+    use reth_primitives::hex;
 
     use super::*;
 

@@ -1,7 +1,7 @@
 //! reth data directories.
 
 use crate::{args::DatadirArgs, utils::parse_path};
-use reth_chainspec::Chain;
+use reth_primitives::Chain;
 use std::{
     env::VarError,
     fmt::{Debug, Display, Formatter},

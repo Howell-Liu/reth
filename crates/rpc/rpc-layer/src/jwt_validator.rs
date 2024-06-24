@@ -1,7 +1,7 @@
-use crate::{AuthValidator, JwtError, JwtSecret};
 use http::{header, HeaderMap, Response, StatusCode};
-use jsonrpsee_http_client::{HttpBody, HttpResponse};
 use tracing::error;
+
+use crate::{AuthValidator, JwtError, JwtSecret};
 
 /// Implements JWT validation logics and integrates
 /// to an Http [`AuthLayer`][crate::AuthLayer]
@@ -22,7 +22,9 @@ impl JwtAuthValidator {
 }
 
 impl AuthValidator for JwtAuthValidator {
-    fn validate(&self, headers: &HeaderMap) -> Result<(), HttpResponse> {
+    type ResponseBody = hyper::Body;
+
+    fn validate(&self, headers: &HeaderMap) -> Result<(), Response<Self::ResponseBody>> {
         match get_bearer(headers) {
             Some(jwt) => match self.secret.validate(&jwt) {
                 Ok(_) => Ok(()),
@@ -53,13 +55,14 @@ fn get_bearer(headers: &HeaderMap) -> Option<String> {
     Some(token.into())
 }
 
-fn err_response(err: JwtError) -> HttpResponse {
+fn err_response(err: JwtError) -> Response<hyper::Body> {
+    let body = hyper::Body::from(err.to_string());
     // We build a response from an error message.
     // We don't cope with headers or other structured fields.
     // Then we are safe to "expect" on the result.
     Response::builder()
         .status(StatusCode::UNAUTHORIZED)
-        .body(HttpBody::new(err.to_string()))
+        .body(body)
         .expect("This should never happen")
 }
 

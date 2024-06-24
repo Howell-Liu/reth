@@ -1,13 +1,9 @@
 //! EIP-6110 deposit requests parsing
 use alloy_eips::eip6110::{DepositRequest, MAINNET_DEPOSIT_CONTRACT_ADDRESS};
 use alloy_sol_types::{sol, SolEvent};
-use reth_chainspec::ChainSpec;
 use reth_evm::execute::BlockValidationError;
-use reth_primitives::{Receipt, Request};
+use reth_primitives::{ChainSpec, Receipt, Request};
 use revm_primitives::Log;
-
-#[cfg(not(feature = "std"))]
-use alloc::{string::ToString, vec::Vec};
 
 sol! {
     #[allow(missing_docs)]
@@ -89,8 +85,7 @@ fn parse_deposit_from_log(log: &Log<DepositEvent>) -> DepositRequest {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reth_chainspec::MAINNET;
-    use reth_primitives::TxType;
+    use reth_primitives::{TxType, MAINNET};
 
     #[test]
     fn test_parse_deposit_from_log() {

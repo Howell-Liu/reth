@@ -6,8 +6,9 @@ use futures::Stream;
 use reth_eth_wire::{
     capability::SharedCapabilities, multiplex::ProtocolConnection, protocol::Protocol,
 };
-use reth_network_api::{Direction, PeerId};
+use reth_network_api::Direction;
 use reth_primitives::BytesMut;
+use reth_rpc_types::PeerId;
 use std::{
     fmt,
     net::SocketAddr,

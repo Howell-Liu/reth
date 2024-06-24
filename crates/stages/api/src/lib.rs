@@ -26,6 +26,3 @@ pub use pipeline::*;
 pub use stage::*;
 
 use aquamarine as _;
-
-// re-export the stages types for convenience
-pub use reth_stages_types::*;

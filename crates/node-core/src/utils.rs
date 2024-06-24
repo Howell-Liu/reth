@@ -2,7 +2,6 @@
 //! blocks from the network.
 
 use eyre::Result;
-use reth_chainspec::ChainSpec;
 use reth_consensus_common::validation::validate_block_pre_execution;
 use reth_fs_util as fs;
 use reth_network::NetworkManager;
@@ -11,7 +10,7 @@ use reth_network_p2p::{
     headers::client::{HeadersClient, HeadersRequest},
     priority::Priority,
 };
-use reth_primitives::{BlockHashOrNumber, HeadersDirection, SealedBlock, SealedHeader};
+use reth_primitives::{BlockHashOrNumber, ChainSpec, HeadersDirection, SealedBlock, SealedHeader};
 use reth_provider::BlockReader;
 use reth_rpc_types::engine::{JwtError, JwtSecret};
 use std::{

@@ -46,7 +46,7 @@ services:
 
   grafana:
     restart: unless-stopped
-    image: grafana/grafana:latest
+    image: grafana/grafana:10.3.3
     depends_on:
       - reth
       - prometheus

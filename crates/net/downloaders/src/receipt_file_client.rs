@@ -1,55 +1,32 @@
-use std::marker::PhantomData;
-
 use futures::Future;
 use reth_primitives::{Receipt, Receipts};
 use tokio::io::AsyncReadExt;
 use tokio_stream::StreamExt;
-use tokio_util::codec::{Decoder, FramedRead};
+use tokio_util::codec::FramedRead;
 use tracing::trace;
 
-use crate::file_client::{FileClientError, FromReader};
+use crate::{
+    file_client::{FileClientError, FromReader},
+    file_codec_ovm_receipt::HackReceiptFileCodec,
+};
 
 /// File client for reading RLP encoded receipts from file. Receipts in file must be in sequential
 /// order w.r.t. block number.
 #[derive(Debug)]
-pub struct ReceiptFileClient<D> {
+pub struct ReceiptFileClient {
     /// The buffered receipts, read from file, as nested lists. One list per block number.
     pub receipts: Receipts,
     /// First (lowest) block number read from file.
     pub first_block: u64,
     /// Total number of receipts. Count of elements in [`Receipts`] flattened.
     pub total_receipts: usize,
-    /// marker
-    _marker: PhantomData<D>,
 }
 
-/// Constructs a file client from a reader and decoder.
-pub trait FromReceiptReader<D> {
-    /// Error returned by file client type.
-    type Error: From<std::io::Error>;
+impl FromReader for ReceiptFileClient {
+    type Error = FileClientError;
 
-    /// Returns a decoder instance
-    fn decoder() -> D;
-
-    /// Returns a file client
-    fn from_receipt_reader<B>(
-        reader: B,
-        decoder: D,
-        num_bytes: u64,
-    ) -> impl Future<Output = Result<(Self, Vec<u8>), Self::Error>>
-    where
-        Self: Sized,
-        B: AsyncReadExt + Unpin;
-}
-
-impl<D> FromReader for ReceiptFileClient<D>
-where
-    D: Decoder<Item = Option<ReceiptWithBlockNumber>, Error = FileClientError>
-        + std::fmt::Debug
-        + Default,
-{
-    type Error = D::Error;
-
+    /// Initialize the [`ReceiptFileClient`] from bytes that have been read from file. Caution! If
+    /// first block has no transactions, it's assumed to be the genesis block.
     fn from_reader<B>(
         reader: B,
         num_bytes: u64,
@@ -57,41 +34,16 @@ where
     where
         B: AsyncReadExt + Unpin,
     {
-        Self::from_receipt_reader(reader, Self::decoder(), num_bytes)
-    }
-}
-
-impl<D> FromReceiptReader<D> for ReceiptFileClient<D>
-where
-    D: Decoder<Item = Option<ReceiptWithBlockNumber>, Error = FileClientError>
-        + std::fmt::Debug
-        + Default,
-{
-    type Error = D::Error;
-
-    fn decoder() -> D {
-        Default::default()
-    }
-
-    /// Initialize the [`ReceiptFileClient`] from bytes that have been read from file. Caution! If
-    /// first block has no transactions, it's assumed to be the genesis block.
-    fn from_receipt_reader<B>(
-        reader: B,
-        decoder: D,
-        num_bytes: u64,
-    ) -> impl Future<Output = Result<(Self, Vec<u8>), Self::Error>>
-    where
-        B: AsyncReadExt + Unpin,
-    {
-        let mut receipts = Receipts::default();
+        let mut receipts = Receipts::new();
 
         // use with_capacity to make sure the internal buffer contains the entire chunk
-        let mut stream = FramedRead::with_capacity(reader, decoder, num_bytes as usize);
+        let mut stream =
+            FramedRead::with_capacity(reader, HackReceiptFileCodec, num_bytes as usize);
 
         trace!(target: "downloaders::file",
             target_num_bytes=num_bytes,
             capacity=stream.read_buffer().capacity(),
-            codec=?Self::decoder(),
+            codec=?HackReceiptFileCodec,
             "init decode stream"
         );
 
@@ -197,12 +149,7 @@ where
             );
 
             Ok((
-                Self {
-                    receipts,
-                    first_block: first_block.unwrap_or_default(),
-                    total_receipts,
-                    _marker: Default::default(),
-                },
+                Self { receipts, first_block: first_block.unwrap_or_default(), total_receipts },
                 remaining_bytes,
             ))
         }
@@ -223,16 +170,13 @@ mod test {
     use reth_primitives::hex;
     use reth_tracing::init_test_tracing;
 
-    use crate::file_codec_ovm_receipt::{
-        test::{
-            receipt_block_1 as op_mainnet_receipt_block_1,
-            receipt_block_2 as op_mainnet_receipt_block_2,
-            receipt_block_3 as op_mainnet_receipt_block_3,
-            HACK_RECEIPT_ENCODED_BLOCK_1 as HACK_RECEIPT_ENCODED_BLOCK_1_OP_MAINNET,
-            HACK_RECEIPT_ENCODED_BLOCK_2 as HACK_RECEIPT_ENCODED_BLOCK_2_OP_MAINNET,
-            HACK_RECEIPT_ENCODED_BLOCK_3 as HACK_RECEIPT_ENCODED_BLOCK_3_OP_MAINNET,
-        },
-        HackReceiptFileCodec,
+    use crate::file_codec_ovm_receipt::test::{
+        receipt_block_1 as op_mainnet_receipt_block_1,
+        receipt_block_2 as op_mainnet_receipt_block_2,
+        receipt_block_3 as op_mainnet_receipt_block_3,
+        HACK_RECEIPT_ENCODED_BLOCK_1 as HACK_RECEIPT_ENCODED_BLOCK_1_OP_MAINNET,
+        HACK_RECEIPT_ENCODED_BLOCK_2 as HACK_RECEIPT_ENCODED_BLOCK_2_OP_MAINNET,
+        HACK_RECEIPT_ENCODED_BLOCK_3 as HACK_RECEIPT_ENCODED_BLOCK_3_OP_MAINNET,
     };
 
     use super::*;
@@ -255,12 +199,8 @@ mod test {
         let encoded_byte_len = encoded_receipts.len() as u64;
         let reader = &mut &encoded_receipts[..];
 
-        let (
-            ReceiptFileClient { receipts, first_block, total_receipts, _marker },
-            _remaining_bytes,
-        ) = ReceiptFileClient::<HackReceiptFileCodec>::from_reader(reader, encoded_byte_len)
-            .await
-            .unwrap();
+        let (ReceiptFileClient { receipts, first_block, total_receipts }, _remaining_bytes) =
+            ReceiptFileClient::from_reader(reader, encoded_byte_len).await.unwrap();
 
         // 2 non-empty receipt objects
         assert_eq!(2, total_receipts);
@@ -287,12 +227,8 @@ mod test {
         let encoded_byte_len = encoded_receipts.len() as u64;
         let reader = &mut &encoded_receipts[..];
 
-        let (
-            ReceiptFileClient { receipts, first_block, total_receipts, _marker },
-            _remaining_bytes,
-        ) = ReceiptFileClient::<HackReceiptFileCodec>::from_reader(reader, encoded_byte_len)
-            .await
-            .unwrap();
+        let (ReceiptFileClient { receipts, first_block, total_receipts }, _remaining_bytes) =
+            ReceiptFileClient::from_reader(reader, encoded_byte_len).await.unwrap();
 
         // 2 non-empty receipt objects
         assert_eq!(2, total_receipts);
@@ -320,12 +256,8 @@ mod test {
         let encoded_byte_len = encoded_receipts.len() as u64;
         let reader = &mut &encoded_receipts[..];
 
-        let (
-            ReceiptFileClient { receipts, first_block, total_receipts, _marker },
-            _remaining_bytes,
-        ) = ReceiptFileClient::<HackReceiptFileCodec>::from_reader(reader, encoded_byte_len)
-            .await
-            .unwrap();
+        let (ReceiptFileClient { receipts, first_block, total_receipts }, _remaining_bytes) =
+            ReceiptFileClient::from_reader(reader, encoded_byte_len).await.unwrap();
 
         // 4 non-empty receipt objects
         assert_eq!(4, total_receipts);

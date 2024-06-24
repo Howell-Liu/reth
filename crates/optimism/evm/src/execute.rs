@@ -1,20 +1,18 @@
 //! Optimism block executor.
 
 use crate::{l1::ensure_create2_deployer, OptimismBlockExecutionError, OptimismEvmConfig};
-use reth_chainspec::{ChainSpec, Hardfork};
 use reth_evm::{
     execute::{
-        BatchExecutor, BlockExecutionError, BlockExecutionInput, BlockExecutionOutput,
-        BlockExecutorProvider, BlockValidationError, Executor, ProviderError,
+        BatchBlockExecutionOutput, BatchExecutor, BlockExecutionError, BlockExecutionInput,
+        BlockExecutionOutput, BlockExecutorProvider, BlockValidationError, Executor, ProviderError,
     },
     ConfigureEvm,
 };
-use reth_execution_types::ExecutionOutcome;
 use reth_optimism_consensus::validate_block_post_execution;
 use reth_primitives::{
-    BlockNumber, BlockWithSenders, Header, Receipt, Receipts, TxType, Withdrawals, U256,
+    BlockNumber, BlockWithSenders, ChainSpec, Hardfork, Header, PruneModes, Receipt, Receipts,
+    TxType, Withdrawals, U256,
 };
-use reth_prune_types::PruneModes;
 use reth_revm::{
     batch::{BlockBatchRecord, BlockExecutorStats},
     db::states::bundle_state::BundleRetention,
@@ -44,7 +42,7 @@ impl OpExecutorProvider {
 
 impl<EvmConfig> OpExecutorProvider<EvmConfig> {
     /// Creates a new executor provider.
-    pub const fn new(chain_spec: Arc<ChainSpec>, evm_config: EvmConfig) -> Self {
+    pub fn new(chain_spec: Arc<ChainSpec>, evm_config: EvmConfig) -> Self {
         Self { chain_spec, evm_config }
     }
 }
@@ -236,7 +234,7 @@ pub struct OpBlockExecutor<EvmConfig, DB> {
 
 impl<EvmConfig, DB> OpBlockExecutor<EvmConfig, DB> {
     /// Creates a new Ethereum block executor.
-    pub const fn new(chain_spec: Arc<ChainSpec>, evm_config: EvmConfig, state: State<DB>) -> Self {
+    pub fn new(chain_spec: Arc<ChainSpec>, evm_config: EvmConfig, state: State<DB>) -> Self {
         Self { executor: OpEvmExecutor { chain_spec, evm_config }, state }
     }
 
@@ -397,7 +395,7 @@ where
     DB: Database<Error = ProviderError>,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
-    type Output = ExecutionOutcome;
+    type Output = BatchBlockExecutionOutput;
     type Error = BlockExecutionError;
 
     fn execute_and_verify_one(&mut self, input: Self::Input<'_>) -> Result<(), Self::Error> {
@@ -424,11 +422,11 @@ where
     fn finalize(mut self) -> Self::Output {
         self.stats.log_debug();
 
-        ExecutionOutcome::new(
+        BatchBlockExecutionOutput::new(
             self.executor.state.take_bundle(),
             self.batch_record.take_receipts(),
-            self.batch_record.first_block().unwrap_or_default(),
             self.batch_record.take_requests(),
+            self.batch_record.first_block().unwrap_or_default(),
         )
     }
 
@@ -444,10 +442,9 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use reth_chainspec::ChainSpecBuilder;
     use reth_primitives::{
-        b256, Account, Address, Block, Signature, StorageKey, StorageValue, Transaction,
-        TransactionSigned, TxEip1559, BASE_MAINNET,
+        b256, Account, Address, Block, ChainSpecBuilder, Signature, StorageKey, StorageValue,
+        Transaction, TransactionSigned, TxEip1559, BASE_MAINNET,
     };
     use reth_revm::{
         database::StateProviderDatabase, test_utils::StateProviderTest, L1_BLOCK_CONTRACT,

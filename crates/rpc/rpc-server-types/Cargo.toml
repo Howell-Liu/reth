@@ -14,7 +14,3 @@ workspace = true
 [dependencies]
 # ethereum
 alloy-primitives.workspace = true
-
-# misc
-strum = { workspace = true, features = ["derive"] }
-serde = { workspace = true, features = ["derive"] }

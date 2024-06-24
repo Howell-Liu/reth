@@ -1,6 +1,5 @@
-use crate::{hash_builder::HashBuilder, trie_cursor::CursorSubNode, updates::TrieUpdates};
-use reth_primitives::B256;
-use reth_stages_types::MerkleCheckpoint;
+use crate::{trie_cursor::CursorSubNode, updates::TrieUpdates};
+use reth_primitives::{stage::MerkleCheckpoint, trie::hash_builder::HashBuilder, B256};
 
 /// The progress of the state root computation.
 #[derive(Debug)]

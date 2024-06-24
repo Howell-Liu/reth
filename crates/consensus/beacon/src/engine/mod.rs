@@ -5,7 +5,7 @@ use reth_blockchain_tree_api::{
     BlockStatus, BlockValidationKind, BlockchainTreeEngine, CanonicalOutcome, InsertPayloadOk,
 };
 use reth_db_api::database::Database;
-use reth_engine_primitives::EngineTypes;
+use reth_engine_primitives::{EngineTypes, PayloadAttributes, PayloadBuilderAttributes};
 use reth_errors::{BlockValidationError, ProviderResult, RethError, RethResult};
 use reth_network_p2p::{
     bodies::client::BodiesClient,
@@ -13,11 +13,11 @@ use reth_network_p2p::{
     sync::{NetworkSyncUpdater, SyncState},
 };
 use reth_payload_builder::PayloadBuilderHandle;
-use reth_payload_primitives::{PayloadAttributes, PayloadBuilderAttributes};
 use reth_payload_validator::ExecutionPayloadValidator;
 use reth_primitives::{
-    constants::EPOCH_SLOTS, BlockNumHash, BlockNumber, Head, Header, SealedBlock, SealedHeader,
-    B256,
+    constants::EPOCH_SLOTS,
+    stage::{PipelineTarget, StageId},
+    BlockNumHash, BlockNumber, Head, Header, SealedBlock, SealedHeader, B256,
 };
 use reth_provider::{
     BlockIdReader, BlockReader, BlockSource, CanonChainTracker, ChainSpecProvider, ProviderError,
@@ -27,7 +27,7 @@ use reth_rpc_types::engine::{
     CancunPayloadFields, ExecutionPayload, ForkchoiceState, PayloadStatus, PayloadStatusEnum,
     PayloadValidationError,
 };
-use reth_stages_api::{ControlFlow, Pipeline, PipelineTarget, StageId};
+use reth_stages_api::{ControlFlow, Pipeline};
 use reth_tasks::TaskSpawner;
 use reth_tokio_util::EventSender;
 use std::{
@@ -240,6 +240,7 @@ where
         task_spawner: Box<dyn TaskSpawner>,
         sync_state_updater: Box<dyn NetworkSyncUpdater>,
         max_block: Option<BlockNumber>,
+        run_pipeline_continuously: bool,
         payload_builder: PayloadBuilderHandle<EngineT>,
         target: Option<B256>,
         pipeline_run_threshold: u64,
@@ -253,6 +254,7 @@ where
             task_spawner,
             sync_state_updater,
             max_block,
+            run_pipeline_continuously,
             payload_builder,
             target,
             pipeline_run_threshold,
@@ -283,6 +285,7 @@ where
         task_spawner: Box<dyn TaskSpawner>,
         sync_state_updater: Box<dyn NetworkSyncUpdater>,
         max_block: Option<BlockNumber>,
+        run_pipeline_continuously: bool,
         payload_builder: PayloadBuilderHandle<EngineT>,
         target: Option<B256>,
         pipeline_run_threshold: u64,
@@ -296,6 +299,7 @@ where
             pipeline,
             client,
             task_spawner.clone(),
+            run_pipeline_continuously,
             max_block,
             blockchain.chain_spec(),
             event_sender.clone(),
@@ -1444,6 +1448,11 @@ where
             return Ok(())
         }
 
+        // update the canon chain if continuous is enabled
+        if self.sync.run_pipeline_continuously() {
+            self.set_canonical_head(ctrl.block_number().unwrap_or_default())?;
+        }
+
         let sync_target_state = match self.forkchoice_state_tracker.sync_target_state() {
             Some(current_state) => current_state,
             None => {
@@ -1975,12 +1984,11 @@ mod tests {
         BeaconForkChoiceUpdateError,
     };
     use assert_matches::assert_matches;
-    use reth_chainspec::{ChainSpecBuilder, MAINNET};
+    use reth_primitives::{stage::StageCheckpoint, ChainSpecBuilder, MAINNET};
     use reth_provider::{BlockWriter, ProviderFactory};
     use reth_rpc_types::engine::{ForkchoiceState, ForkchoiceUpdated, PayloadStatus};
     use reth_rpc_types_compat::engine::payload::block_to_payload_v1;
     use reth_stages::{ExecOutput, PipelineError, StageError};
-    use reth_stages_api::StageCheckpoint;
     use reth_testing_utils::generators::{self, Rng};
     use std::{collections::VecDeque, sync::Arc};
     use tokio::sync::oneshot::error::TryRecvError;
@@ -2490,9 +2498,8 @@ mod tests {
 
     mod new_payload {
         use super::*;
-        use alloy_genesis::Genesis;
         use reth_db::test_utils::create_test_static_files_dir;
-        use reth_primitives::{Hardfork, U256};
+        use reth_primitives::{genesis::Genesis, Hardfork, U256};
         use reth_provider::{
             providers::StaticFileProvider, test_utils::blocks::BlockchainTestData,
         };

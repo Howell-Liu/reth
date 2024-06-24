@@ -2,7 +2,7 @@ use crate::{
     AccountReader, BlockHashReader, BlockIdReader, BlockNumReader, BlockReader, BlockReaderIdExt,
     BlockSource, BlockchainTreePendingStateProvider, CanonChainTracker, CanonStateNotifications,
     CanonStateSubscriptions, ChainSpecProvider, ChangeSetReader, DatabaseProviderFactory,
-    EvmEnvProvider, FullExecutionDataProvider, HeaderProvider, ProviderError,
+    EvmEnvProvider, FullBundleStateDataProvider, HeaderProvider, ProviderError,
     PruneCheckpointReader, ReceiptProvider, ReceiptProviderIdExt, RequestsProvider,
     StageCheckpointReader, StateProviderBox, StateProviderFactory, StaticFileProviderFactory,
     TransactionVariant, TransactionsProvider, TreeViewer, WithdrawalsProvider,
@@ -12,20 +12,19 @@ use reth_blockchain_tree_api::{
     BlockValidationKind, BlockchainTreeEngine, BlockchainTreeViewer, CanonicalOutcome,
     InsertPayloadOk,
 };
-use reth_chainspec::{ChainInfo, ChainSpec};
 use reth_db_api::{
     database::Database,
     models::{AccountBeforeTx, StoredBlockBodyIndices},
 };
 use reth_evm::ConfigureEvmEnv;
 use reth_primitives::{
+    stage::{StageCheckpoint, StageId},
     Account, Address, Block, BlockHash, BlockHashOrNumber, BlockId, BlockNumHash, BlockNumber,
-    BlockNumberOrTag, BlockWithSenders, Header, Receipt, SealedBlock, SealedBlockWithSenders,
-    SealedHeader, TransactionMeta, TransactionSigned, TransactionSignedNoHash, TxHash, TxNumber,
-    Withdrawal, Withdrawals, B256, U256,
+    BlockNumberOrTag, BlockWithSenders, ChainInfo, ChainSpec, Header, PruneCheckpoint,
+    PruneSegment, Receipt, SealedBlock, SealedBlockWithSenders, SealedHeader, TransactionMeta,
+    TransactionSigned, TransactionSignedNoHash, TxHash, TxNumber, Withdrawal, Withdrawals, B256,
+    U256,
 };
-use reth_prune_types::{PruneCheckpoint, PruneSegment};
-use reth_stages_types::{StageCheckpoint, StageId};
 use reth_storage_errors::provider::ProviderResult;
 use revm::primitives::{BlockEnv, CfgEnvWithHandlerCfg};
 use std::{
@@ -337,13 +336,6 @@ where
         range: RangeInclusive<BlockNumber>,
     ) -> ProviderResult<Vec<BlockWithSenders>> {
         self.database.block_with_senders_range(range)
-    }
-
-    fn sealed_block_with_senders_range(
-        &self,
-        range: RangeInclusive<BlockNumber>,
-    ) -> ProviderResult<Vec<SealedBlockWithSenders>> {
-        self.database.sealed_block_with_senders_range(range)
     }
 }
 
@@ -665,7 +657,7 @@ where
 
     fn pending_with_provider(
         &self,
-        bundle_state_data: Box<dyn FullExecutionDataProvider>,
+        bundle_state_data: Box<dyn FullBundleStateDataProvider>,
     ) -> ProviderResult<StateProviderBox> {
         let canonical_fork = bundle_state_data.canonical_fork();
         trace!(target: "providers::blockchain", ?canonical_fork, "Returning post state provider");
@@ -884,7 +876,7 @@ where
     fn find_pending_state_provider(
         &self,
         block_hash: BlockHash,
-    ) -> Option<Box<dyn FullExecutionDataProvider>> {
+    ) -> Option<Box<dyn FullBundleStateDataProvider>> {
         self.tree.find_pending_state_provider(block_hash)
     }
 }

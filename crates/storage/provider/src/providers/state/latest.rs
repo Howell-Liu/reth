@@ -8,10 +8,11 @@ use reth_db_api::{
     transaction::DbTx,
 };
 use reth_primitives::{
-    Account, Address, BlockNumber, Bytecode, StaticFileSegment, StorageKey, StorageValue, B256,
+    trie::AccountProof, Account, Address, BlockNumber, Bytecode, StaticFileSegment, StorageKey,
+    StorageValue, B256,
 };
 use reth_storage_errors::provider::{ProviderError, ProviderResult};
-use reth_trie::{proof::Proof, updates::TrieUpdates, AccountProof, HashedPostState};
+use reth_trie::{proof::Proof, updates::TrieUpdates, HashedPostState};
 use revm::db::BundleState;
 
 /// State provider over latest state that takes tx reference.

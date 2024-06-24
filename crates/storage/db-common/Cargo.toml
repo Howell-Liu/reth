@@ -9,7 +9,6 @@ repository.workspace = true
 
 [dependencies]
 # reth
-reth-chainspec.workspace = true
 reth-primitives.workspace = true
 reth-db = { workspace = true, features = ["mdbx"] }
 reth-db-api.workspace = true
@@ -18,10 +17,6 @@ reth-config.workspace = true
 reth-trie.workspace = true
 reth-etl.workspace = true
 reth-codecs.workspace = true
-reth-stages-types.workspace = true
-
-# eth
-alloy-genesis.workspace = true
 
 # misc
 eyre.workspace = true
@@ -33,9 +28,6 @@ serde_json.workspace = true
 
 # tracing
 tracing.workspace = true
-
-[dev-dependencies]
-reth-primitives-traits.workspace = true
 
 [lints]
 workspace = true

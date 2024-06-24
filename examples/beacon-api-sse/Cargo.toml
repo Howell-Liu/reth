@@ -1,5 +1,5 @@
 [package]
-name = "example-beacon-api-sse"
+name = "beacon-api-sse"
 version = "0.0.0"
 publish = false
 edition.workspace = true
@@ -8,11 +8,10 @@ license.workspace = true
 [dependencies]
 reth.workspace = true
 reth-node-ethereum.workspace = true
-
 alloy-rpc-types-beacon.workspace = true
 
 clap.workspace = true
-futures-util.workspace = true
-mev-share-sse = { version = "0.3.0", default-features = false }
-tokio = { workspace = true, features = ["time"] }
 tracing.workspace = true
+futures-util.workspace = true
+tokio = { workspace = true, features = ["time"] }
+mev-share-sse = {  version = "0.2.0" , default-features = false }

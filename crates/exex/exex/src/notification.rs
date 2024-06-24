@@ -4,7 +4,6 @@ use reth_provider::{CanonStateNotification, Chain};
 
 /// Notifications sent to an `ExEx`.
 #[derive(Debug, Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum ExExNotification {
     /// Chain got committed without a reorg, and only the new chain is returned.
     ChainCommitted {

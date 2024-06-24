@@ -1,7 +1,7 @@
 //! Errors when computing the state root.
 
 use reth_storage_errors::db::DatabaseError;
-use thiserror_no_std::Error;
+use thiserror::Error;
 
 /// State root errors.
 #[derive(Error, Debug, PartialEq, Eq, Clone)]

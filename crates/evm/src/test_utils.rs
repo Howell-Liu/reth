@@ -1,13 +1,12 @@
 //! Helpers for testing.
 
 use crate::execute::{
-    BatchExecutor, BlockExecutionInput, BlockExecutionOutput, BlockExecutorProvider, Executor,
+    BatchBlockExecutionOutput, BatchExecutor, BlockExecutionInput, BlockExecutionOutput,
+    BlockExecutorProvider, Executor,
 };
 use parking_lot::Mutex;
 use reth_execution_errors::BlockExecutionError;
-use reth_execution_types::ExecutionOutcome;
-use reth_primitives::{BlockNumber, BlockWithSenders, Receipt};
-use reth_prune_types::PruneModes;
+use reth_primitives::{BlockNumber, BlockWithSenders, PruneModes, Receipt};
 use reth_storage_errors::provider::ProviderError;
 use revm_primitives::db::Database;
 use std::sync::Arc;
@@ -15,12 +14,12 @@ use std::sync::Arc;
 /// A [`BlockExecutorProvider`] that returns mocked execution results.
 #[derive(Clone, Debug, Default)]
 pub struct MockExecutorProvider {
-    exec_results: Arc<Mutex<Vec<ExecutionOutcome>>>,
+    exec_results: Arc<Mutex<Vec<BatchBlockExecutionOutput>>>,
 }
 
 impl MockExecutorProvider {
     /// Extend the mocked execution results
-    pub fn extend(&self, results: impl IntoIterator<Item = impl Into<ExecutionOutcome>>) {
+    pub fn extend(&self, results: impl IntoIterator<Item = impl Into<BatchBlockExecutionOutput>>) {
         self.exec_results.lock().extend(results.into_iter().map(Into::into));
     }
 }
@@ -51,7 +50,7 @@ impl<DB> Executor<DB> for MockExecutorProvider {
     type Error = BlockExecutionError;
 
     fn execute(self, _: Self::Input<'_>) -> Result<Self::Output, Self::Error> {
-        let ExecutionOutcome { bundle, receipts, requests, first_block: _ } =
+        let BatchBlockExecutionOutput { bundle, receipts, requests, first_block: _ } =
             self.exec_results.lock().pop().unwrap();
         Ok(BlockExecutionOutput {
             state: bundle,
@@ -64,7 +63,7 @@ impl<DB> Executor<DB> for MockExecutorProvider {
 
 impl<DB> BatchExecutor<DB> for MockExecutorProvider {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
-    type Output = ExecutionOutcome;
+    type Output = BatchBlockExecutionOutput;
     type Error = BlockExecutionError;
 
     fn execute_and_verify_one(&mut self, _: Self::Input<'_>) -> Result<(), Self::Error> {

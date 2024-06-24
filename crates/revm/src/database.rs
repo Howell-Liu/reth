@@ -1,5 +1,4 @@
 use crate::primitives::alloy_primitives::{BlockNumber, StorageKey, StorageValue};
-use core::ops::{Deref, DerefMut};
 use reth_primitives::{Account, Address, B256, KECCAK_EMPTY, U256};
 use reth_storage_errors::provider::{ProviderError, ProviderResult};
 use revm::{
@@ -7,6 +6,7 @@ use revm::{
     primitives::{AccountInfo, Bytecode},
     Database,
 };
+use std::ops::{Deref, DerefMut};
 
 /// A helper trait responsible for providing that necessary state for the EVM execution.
 ///

@@ -1,8 +1,7 @@
 use reth_db_api::database::Database;
+use reth_primitives::stage::{StageCheckpoint, StageId};
 use reth_provider::DatabaseProviderRW;
-use reth_stages_api::{
-    ExecInput, ExecOutput, Stage, StageCheckpoint, StageError, StageId, UnwindInput, UnwindOutput,
-};
+use reth_stages_api::{ExecInput, ExecOutput, Stage, StageError, UnwindInput, UnwindOutput};
 
 /// The finish stage.
 ///

@@ -22,15 +22,14 @@ use reth_exex::ExExManagerHandle;
 use reth_network::{NetworkEvents, NetworkHandle};
 use reth_network_api::NetworkInfo;
 use reth_network_p2p::{bodies::client::BodiesClient, headers::client::HeadersClient};
-use reth_primitives::{BlockHashOrNumber, BlockNumber, B256};
+use reth_primitives::{stage::StageId, BlockHashOrNumber, BlockNumber, PruneModes, B256};
 use reth_provider::{
-    BlockExecutionWriter, ChainSpecProvider, ProviderFactory, StageCheckpointReader,
+    BlockExecutionWriter, ChainSpecProvider, HeaderSyncMode, ProviderFactory, StageCheckpointReader,
 };
-use reth_prune_types::PruneModes;
 use reth_stages::{
     sets::DefaultStages,
     stages::{ExecutionStage, ExecutionStageThresholds},
-    Pipeline, StageId, StageSet,
+    Pipeline, StageSet,
 };
 use reth_static_file::StaticFileProducer;
 use reth_tasks::TaskExecutor;
@@ -86,12 +85,13 @@ impl Command {
         let (tip_tx, tip_rx) = watch::channel(B256::ZERO);
         let executor = block_executor!(provider_factory.chain_spec());
 
+        let header_mode = HeaderSyncMode::Tip(tip_rx);
         let pipeline = Pipeline::builder()
             .with_tip_sender(tip_tx)
             .add_stages(
                 DefaultStages::new(
                     provider_factory.clone(),
-                    tip_rx,
+                    header_mode,
                     Arc::clone(&consensus),
                     header_downloader,
                     body_downloader,

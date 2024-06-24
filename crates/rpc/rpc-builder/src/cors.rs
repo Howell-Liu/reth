@@ -1,4 +1,4 @@
-use http::{HeaderValue, Method};
+use hyper::{http::HeaderValue, Method};
 use tower_http::cors::{AllowOrigin, Any, CorsLayer};
 
 /// Error thrown when parsing cors domains went wrong

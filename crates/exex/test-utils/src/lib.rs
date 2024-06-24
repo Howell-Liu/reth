@@ -10,19 +10,15 @@
 
 use futures_util::FutureExt;
 use reth_blockchain_tree::noop::NoopBlockchainTree;
-use reth_chainspec::{ChainSpec, MAINNET};
-use reth_consensus::test_utils::TestConsensus;
 use reth_db::{test_utils::TempDatabase, DatabaseEnv};
 use reth_db_common::init::init_genesis;
 use reth_evm::test_utils::MockExecutorProvider;
-use reth_execution_types::Chain;
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_network::{config::SecretKey, NetworkConfigBuilder, NetworkManager};
 use reth_node_api::{FullNodeTypes, FullNodeTypesAdapter, NodeTypes};
 use reth_node_builder::{
     components::{
-        Components, ComponentsBuilder, ConsensusBuilder, ExecutorBuilder, NodeComponentsBuilder,
-        PoolBuilder,
+        Components, ComponentsBuilder, ExecutorBuilder, NodeComponentsBuilder, PoolBuilder,
     },
     BuilderContext, Node, NodeAdapter, RethFullAdapter,
 };
@@ -32,10 +28,10 @@ use reth_node_ethereum::{
     EthEngineTypes, EthEvmConfig,
 };
 use reth_payload_builder::noop::NoopPayloadBuilderService;
-use reth_primitives::{Head, SealedBlockWithSenders};
+use reth_primitives::{ChainSpec, Head, SealedBlockWithSenders, MAINNET};
 use reth_provider::{
     providers::BlockchainProvider, test_utils::create_test_provider_factory_with_chain_spec,
-    BlockReader, ProviderFactory,
+    BlockReader, Chain, ProviderFactory,
 };
 use reth_tasks::TaskManager;
 use reth_transaction_pool::test_utils::{testing_pool, TestPool};
@@ -45,7 +41,6 @@ use std::{
     sync::Arc,
     task::Poll,
 };
-use thiserror::Error;
 use tokio::sync::mpsc::{Sender, UnboundedReceiver};
 
 /// A test [`PoolBuilder`] that builds a [`TestPool`].
@@ -87,22 +82,6 @@ where
     }
 }
 
-/// A test [`ConsensusBuilder`] that builds a [`TestConsensus`].
-#[derive(Debug, Default, Clone, Copy)]
-#[non_exhaustive]
-pub struct TestConsensusBuilder;
-
-impl<Node> ConsensusBuilder<Node> for TestConsensusBuilder
-where
-    Node: FullNodeTypes,
-{
-    type Consensus = Arc<TestConsensus>;
-
-    async fn build_consensus(self, _ctx: &BuilderContext<Node>) -> eyre::Result<Self::Consensus> {
-        Ok(Arc::new(TestConsensus::default()))
-    }
-}
-
 /// A test [`Node`].
 #[derive(Debug, Default, Clone, Copy)]
 #[non_exhaustive]
@@ -123,7 +102,6 @@ where
         EthereumPayloadBuilder,
         EthereumNetworkBuilder,
         TestExecutorBuilder,
-        TestConsensusBuilder,
     >;
 
     fn components_builder(self) -> Self::ComponentsBuilder {
@@ -133,22 +111,16 @@ where
             .payload(EthereumPayloadBuilder::default())
             .network(EthereumNetworkBuilder::default())
             .executor(TestExecutorBuilder::default())
-            .consensus(TestConsensusBuilder::default())
     }
 }
 
-/// A shared [`TempDatabase`] used for testing
-pub type TmpDB = Arc<TempDatabase<DatabaseEnv>>;
-/// The [`NodeAdapter`] for the [`TestExExContext`]. Contains type necessary to
-/// boot the testing environment
-pub type Adapter = NodeAdapter<
+type TmpDB = Arc<TempDatabase<DatabaseEnv>>;
+type Adapter = NodeAdapter<
     RethFullAdapter<TmpDB, TestNode>,
     <<TestNode as Node<FullNodeTypesAdapter<TestNode, TmpDB, BlockchainProvider<TmpDB>>>>::ComponentsBuilder as NodeComponentsBuilder<
         RethFullAdapter<TmpDB, TestNode>,
     >>::Components,
 >;
-/// An [`ExExContext`] using the [`Adapter`] type.
-pub type TestExExContext = ExExContext<Adapter>;
 
 /// A helper type for testing Execution Extensions.
 #[derive(Debug)]
@@ -161,8 +133,6 @@ pub struct TestExExHandle {
     pub events_rx: UnboundedReceiver<ExExEvent>,
     /// Channel for sending notifications to the Execution Extension
     pub notifications_tx: Sender<ExExNotification>,
-    /// Node task manager
-    pub tasks: TaskManager,
 }
 
 impl TestExExHandle {
@@ -170,26 +140,6 @@ impl TestExExHandle {
     pub async fn send_notification_chain_committed(&self, chain: Chain) -> eyre::Result<()> {
         self.notifications_tx
             .send(ExExNotification::ChainCommitted { new: Arc::new(chain) })
-            .await?;
-        Ok(())
-    }
-
-    /// Send a notification to the Execution Extension that the chain has been reorged
-    pub async fn send_notification_chain_reorged(
-        &self,
-        old: Chain,
-        new: Chain,
-    ) -> eyre::Result<()> {
-        self.notifications_tx
-            .send(ExExNotification::ChainReorged { old: Arc::new(old), new: Arc::new(new) })
-            .await?;
-        Ok(())
-    }
-
-    /// Send a notification to the Execution Extension that the chain has been reverted
-    pub async fn send_notification_chain_reverted(&self, chain: Chain) -> eyre::Result<()> {
-        self.notifications_tx
-            .send(ExExNotification::ChainReverted { old: Arc::new(chain) })
             .await?;
         Ok(())
     }
@@ -227,7 +177,6 @@ pub async fn test_exex_context_with_chain_spec(
     let transaction_pool = testing_pool();
     let evm_config = EthEvmConfig::default();
     let executor = MockExecutorProvider::default();
-    let consensus = Arc::new(TestConsensus::default());
 
     let provider_factory = create_test_provider_factory_with_chain_spec(chain_spec);
     let genesis_hash = init_genesis(provider_factory.clone())?;
@@ -247,14 +196,7 @@ pub async fn test_exex_context_with_chain_spec(
     let task_executor = tasks.executor();
 
     let components = NodeAdapter::<FullNodeTypesAdapter<TestNode, _, _>, _> {
-        components: Components {
-            transaction_pool,
-            evm_config,
-            executor,
-            consensus,
-            network,
-            payload_builder,
-        },
+        components: Components { transaction_pool, evm_config, executor, network, payload_builder },
         task_executor,
         provider,
     };
@@ -286,7 +228,7 @@ pub async fn test_exex_context_with_chain_spec(
         components,
     };
 
-    Ok((ctx, TestExExHandle { genesis, provider_factory, events_rx, notifications_tx, tasks }))
+    Ok((ctx, TestExExHandle { genesis, provider_factory, events_rx, notifications_tx }))
 }
 
 /// Creates a new [`ExExContext`] with (mainnet)[`MAINNET`] chain spec.
@@ -298,36 +240,21 @@ pub async fn test_exex_context() -> eyre::Result<(ExExContext<Adapter>, TestExEx
 
 /// An extension trait for polling an Execution Extension future.
 pub trait PollOnce {
-    /// Polls the given Execution Extension future __once__. The future should be
-    /// (pinned)[`std::pin::pin`].
+    /// Polls the given Execution Extension future __once__ and asserts that it is
+    /// [`Poll::Pending`]. The future should be (pinned)[`std::pin::pin`].
     ///
-    /// # Returns
-    /// - `Ok(())` if the future returned [`Poll::Pending`]. The future can be polled again.
-    /// - `Err(PollOnceError::FutureIsReady)` if the future returned [`Poll::Ready`] without an
-    ///   error. The future should never resolve.
-    /// - `Err(PollOnceError::FutureError(err))` if the future returned [`Poll::Ready`] with an
-    ///   error. Something went wrong.
-    fn poll_once(&mut self) -> impl Future<Output = Result<(), PollOnceError>> + Send;
-}
-
-/// An Execution Extension future polling error.
-#[derive(Error, Debug)]
-pub enum PollOnceError {
-    /// The future returned [`Poll::Ready`] without an error, but it should never resolve.
-    #[error("Execution Extension future returned Ready, but it should never resolve")]
-    FutureIsReady,
-    /// The future returned [`Poll::Ready`] with an error.
-    #[error(transparent)]
-    FutureError(#[from] eyre::Error),
+    /// # Panics
+    /// If the future returns [`Poll::Ready`], because Execution Extension future should never
+    /// resolve.
+    fn poll_once(&mut self) -> impl Future<Output = ()> + Send;
 }
 
 impl<F: Future<Output = eyre::Result<()>> + Unpin + Send> PollOnce for F {
-    async fn poll_once(&mut self) -> Result<(), PollOnceError> {
-        poll_fn(|cx| match self.poll_unpin(cx) {
-            Poll::Ready(Ok(())) => Poll::Ready(Err(PollOnceError::FutureIsReady)),
-            Poll::Ready(Err(err)) => Poll::Ready(Err(PollOnceError::FutureError(err))),
-            Poll::Pending => Poll::Ready(Ok(())),
+    async fn poll_once(&mut self) {
+        poll_fn(|cx| {
+            assert!(self.poll_unpin(cx).is_pending());
+            Poll::Ready(())
         })
-        .await
+        .await;
     }
 }

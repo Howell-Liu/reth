@@ -9,7 +9,7 @@ use reth_primitives::StaticFileSegment;
 use reth_storage_errors::provider::{ProviderError, ProviderResult};
 pub use revm::db::states::OriginalValuesKnown;
 
-impl StateWriter for ExecutionOutcome {
+impl StateWriter for BundleStateWithReceipts {
     fn write_to_storage<TX>(
         self,
         tx: &TX,
@@ -42,14 +42,12 @@ impl StateWriter for ExecutionOutcome {
             if let Some(static_file_producer) = &mut static_file_producer {
                 // Increment block on static file header.
                 static_file_producer.increment_block(StaticFileSegment::Receipts, block_number)?;
-                let receipts = receipts.into_iter().enumerate().map(|(tx_idx, receipt)| {
-                    Ok((
-                        first_tx_index + tx_idx as u64,
-                        receipt
-                            .expect("receipt should not be filtered when saving to static files."),
-                    ))
-                });
-                static_file_producer.append_receipts(receipts)?;
+
+                for (tx_idx, receipt) in receipts.into_iter().enumerate() {
+                    let receipt = receipt
+                        .expect("receipt should not be filtered when saving to static files.");
+                    static_file_producer.append_receipt(first_tx_index + tx_idx as u64, receipt)?;
+                }
             } else if !receipts.is_empty() {
                 for (tx_idx, receipt) in receipts.into_iter().enumerate() {
                     if let Some(receipt) = receipt {
@@ -76,7 +74,9 @@ mod tests {
         models::{AccountBeforeTx, BlockNumberAddress},
     };
     use reth_primitives::{
-        keccak256, Account, Address, Receipt, Receipts, StorageEntry, B256, U256,
+        keccak256,
+        revm::compat::{into_reth_acc, into_revm_acc},
+        Account, Address, Receipt, Receipts, StorageEntry, B256, U256,
     };
     use reth_trie::{test_utils::state_root, StateRoot};
     use revm::{
@@ -147,9 +147,9 @@ mod tests {
             .write_to_db(provider.tx_ref(), 1)
             .expect("Could not write reverts to DB");
 
-        let reth_account_a = account_a.into();
-        let reth_account_b = account_b.into();
-        let reth_account_b_changed = account_b_changed.clone().into();
+        let reth_account_a = into_reth_acc(account_a);
+        let reth_account_b = into_reth_acc(account_b);
+        let reth_account_b_changed = into_reth_acc(account_b_changed.clone());
 
         // Check plain state
         assert_eq!(
@@ -280,7 +280,6 @@ mod tests {
                         EvmStorageSlot {
                             present_value: U256::from(2),
                             original_value: U256::from(1),
-                            ..Default::default()
                         },
                     )]),
                 },
@@ -289,7 +288,7 @@ mod tests {
 
         state.merge_transitions(BundleRetention::Reverts);
 
-        ExecutionOutcome::new(state.take_bundle(), Receipts::default(), 1, Vec::new())
+        BundleStateWithReceipts::new(state.take_bundle(), Receipts::new(), 1)
             .write_to_storage(provider.tx_ref(), None, OriginalValuesKnown::Yes)
             .expect("Could not write bundle state to DB");
 
@@ -387,7 +386,7 @@ mod tests {
         )]));
 
         state.merge_transitions(BundleRetention::Reverts);
-        ExecutionOutcome::new(state.take_bundle(), Receipts::default(), 2, Vec::new())
+        BundleStateWithReceipts::new(state.take_bundle(), Receipts::new(), 2)
             .write_to_storage(provider.tx_ref(), None, OriginalValuesKnown::Yes)
             .expect("Could not write bundle state to DB");
 
@@ -451,7 +450,7 @@ mod tests {
             },
         )]));
         init_state.merge_transitions(BundleRetention::Reverts);
-        ExecutionOutcome::new(init_state.take_bundle(), Receipts::default(), 0, Vec::new())
+        BundleStateWithReceipts::new(init_state.take_bundle(), Receipts::new(), 0)
             .write_to_storage(provider.tx_ref(), None, OriginalValuesKnown::Yes)
             .expect("Could not write init bundle state to DB");
 
@@ -471,11 +470,7 @@ mod tests {
                 // 0x00 => 1 => 2
                 storage: HashMap::from([(
                     U256::ZERO,
-                    EvmStorageSlot {
-                        original_value: U256::from(1),
-                        present_value: U256::from(2),
-                        ..Default::default()
-                    },
+                    EvmStorageSlot { original_value: U256::from(1), present_value: U256::from(2) },
                 )]),
             },
         )]));
@@ -597,7 +592,7 @@ mod tests {
 
         let bundle = state.take_bundle();
 
-        ExecutionOutcome::new(bundle, Receipts::default(), 1, Vec::new())
+        BundleStateWithReceipts::new(bundle, Receipts::new(), 1)
             .write_to_storage(provider.tx_ref(), None, OriginalValuesKnown::Yes)
             .expect("Could not write bundle state to DB");
 
@@ -760,7 +755,7 @@ mod tests {
             },
         )]));
         init_state.merge_transitions(BundleRetention::Reverts);
-        ExecutionOutcome::new(init_state.take_bundle(), Receipts::default(), 0, Vec::new())
+        BundleStateWithReceipts::new(init_state.take_bundle(), Receipts::new(), 0)
             .write_to_storage(provider.tx_ref(), None, OriginalValuesKnown::Yes)
             .expect("Could not write init bundle state to DB");
 
@@ -805,7 +800,7 @@ mod tests {
 
         // Commit block #1 changes to the database.
         state.merge_transitions(BundleRetention::Reverts);
-        ExecutionOutcome::new(state.take_bundle(), Receipts::default(), 1, Vec::new())
+        BundleStateWithReceipts::new(state.take_bundle(), Receipts::new(), 1)
             .write_to_storage(provider.tx_ref(), None, OriginalValuesKnown::Yes)
             .expect("Could not write bundle state to DB");
 
@@ -835,11 +830,10 @@ mod tests {
 
     #[test]
     fn revert_to_indices() {
-        let base = ExecutionOutcome {
+        let base = BundleStateWithReceipts {
             bundle: BundleState::default(),
-            receipts: vec![vec![Some(Receipt::default()); 2]; 7].into(),
+            receipts: Receipts::from_vec(vec![vec![Some(Receipt::default()); 2]; 7]),
             first_block: 10,
-            requests: Vec::new(),
         };
 
         let mut this = base.clone();
@@ -901,15 +895,10 @@ mod tests {
 
         let assert_state_root = |state: &State<EmptyDB>, expected: &PreState, msg| {
             assert_eq!(
-                ExecutionOutcome::new(
-                    state.bundle_state.clone(),
-                    Receipts::default(),
-                    0,
-                    Vec::new()
-                )
-                .hash_state_slow()
-                .state_root(&tx)
-                .unwrap(),
+                BundleStateWithReceipts::new(state.bundle_state.clone(), Receipts::default(), 0)
+                    .hash_state_slow()
+                    .state_root(&tx)
+                    .unwrap(),
                 state_root(expected.clone().into_iter().map(|(address, (account, storage))| (
                     address,
                     (account, storage.into_iter())
@@ -924,7 +913,7 @@ mod tests {
         // destroy account 1
         let address1 = Address::with_last_byte(1);
         let account1_old = prestate.remove(&address1).unwrap();
-        state.insert_account(address1, account1_old.0.into());
+        state.insert_account(address1, into_revm_acc(account1_old.0));
         state.commit(HashMap::from([(
             address1,
             RevmAccount {
@@ -944,7 +933,7 @@ mod tests {
         let account2_slot2_old_value = *account2.1.get(&slot2_key).unwrap();
         state.insert_account_with_storage(
             address2,
-            account2.0.into(),
+            into_revm_acc(account2.0),
             HashMap::from([(slot2, account2_slot2_old_value)]),
         );
 
@@ -954,7 +943,7 @@ mod tests {
             address2,
             RevmAccount {
                 status: AccountStatus::Touched,
-                info: account2.0.into(),
+                info: into_revm_acc(account2.0),
                 storage: HashMap::from_iter([(
                     slot2,
                     EvmStorageSlot::new_changed(account2_slot2_old_value, account2_slot2_new_value),
@@ -967,14 +956,14 @@ mod tests {
         // change balance of account 3
         let address3 = Address::with_last_byte(3);
         let account3 = prestate.get_mut(&address3).unwrap();
-        state.insert_account(address3, account3.0.into());
+        state.insert_account(address3, into_revm_acc(account3.0));
 
         account3.0.balance = U256::from(24);
         state.commit(HashMap::from([(
             address3,
             RevmAccount {
                 status: AccountStatus::Touched,
-                info: account3.0.into(),
+                info: into_revm_acc(account3.0),
                 storage: HashMap::default(),
             },
         )]));
@@ -984,14 +973,14 @@ mod tests {
         // change nonce of account 4
         let address4 = Address::with_last_byte(4);
         let account4 = prestate.get_mut(&address4).unwrap();
-        state.insert_account(address4, account4.0.into());
+        state.insert_account(address4, into_revm_acc(account4.0));
 
         account4.0.nonce = 128;
         state.commit(HashMap::from([(
             address4,
             RevmAccount {
                 status: AccountStatus::Touched,
-                info: account4.0.into(),
+                info: into_revm_acc(account4.0),
                 storage: HashMap::default(),
             },
         )]));
@@ -1006,7 +995,7 @@ mod tests {
             address1,
             RevmAccount {
                 status: AccountStatus::Touched | AccountStatus::Created,
-                info: account1_new.into(),
+                info: into_revm_acc(account1_new),
                 storage: HashMap::default(),
             },
         )]));
@@ -1022,7 +1011,7 @@ mod tests {
             address1,
             RevmAccount {
                 status: AccountStatus::Touched | AccountStatus::Created,
-                info: account1_new.into(),
+                info: into_revm_acc(account1_new),
                 storage: HashMap::from_iter([(
                     slot20,
                     EvmStorageSlot::new_changed(U256::ZERO, account1_slot20_value),
@@ -1052,11 +1041,10 @@ mod tests {
             .build();
         assert_eq!(previous_state.reverts.len(), 1);
 
-        let mut test = ExecutionOutcome {
+        let mut test = BundleStateWithReceipts {
             bundle: present_state,
-            receipts: vec![vec![Some(Receipt::default()); 2]; 1].into(),
+            receipts: Receipts::from_vec(vec![vec![Some(Receipt::default()); 2]; 1]),
             first_block: 2,
-            requests: Vec::new(),
         };
 
         test.prepend_state(previous_state);

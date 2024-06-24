@@ -8,8 +8,7 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-use http::HeaderMap;
-use jsonrpsee_http_client::HttpResponse;
+use http::{HeaderMap, Response};
 
 mod auth_client_layer;
 mod auth_layer;
@@ -25,7 +24,10 @@ pub use jwt_validator::JwtAuthValidator;
 /// General purpose trait to validate Http Authorization headers. It's supposed to be integrated as
 /// a validator trait into an [`AuthLayer`].
 pub trait AuthValidator {
+    /// Body type of the error response
+    type ResponseBody;
+
     /// This function is invoked by the [`AuthLayer`] to perform validation on Http headers.
     /// The result conveys validation errors in the form of an Http response.
-    fn validate(&self, headers: &HeaderMap) -> Result<(), HttpResponse>;
+    fn validate(&self, headers: &HeaderMap) -> Result<(), Response<Self::ResponseBody>>;
 }

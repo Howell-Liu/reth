@@ -1,24 +1,23 @@
 //! Reth genesis initialization utility functions.
 
-use alloy_genesis::GenesisAccount;
-use reth_chainspec::ChainSpec;
 use reth_codecs::Compact;
 use reth_config::config::EtlConfig;
 use reth_db::tables;
 use reth_db_api::{database::Database, transaction::DbTxMut, DatabaseError};
 use reth_etl::Collector;
 use reth_primitives::{
-    Account, Address, Bytecode, Receipts, StaticFileSegment, StorageEntry, B256, U256,
+    stage::{StageCheckpoint, StageId},
+    Account, Address, Bytecode, ChainSpec, GenesisAccount, Receipts, StaticFileSegment,
+    StorageEntry, B256, U256,
 };
 use reth_provider::{
     bundle_state::{BundleStateInit, RevertsInit},
     errors::provider::ProviderResult,
     providers::{StaticFileProvider, StaticFileWriter},
-    BlockHashReader, BlockNumReader, ChainSpecProvider, DatabaseProviderRW, ExecutionOutcome,
-    HashingWriter, HistoryWriter, OriginalValuesKnown, ProviderError, ProviderFactory,
-    StageCheckpointWriter, StateWriter, StaticFileProviderFactory,
+    BlockHashReader, BlockNumReader, BundleStateWithReceipts, ChainSpecProvider,
+    DatabaseProviderRW, HashingWriter, HistoryWriter, OriginalValuesKnown, ProviderError,
+    ProviderFactory, StageCheckpointWriter, StateWriter, StaticFileProviderFactory,
 };
-use reth_stages_types::{StageCheckpoint, StageId};
 use reth_trie::{IntermediateStateRootState, StateRoot as StateRootComputer, StateRootProgress};
 use serde::{Deserialize, Serialize};
 use std::{
@@ -194,16 +193,15 @@ pub fn insert_state<'a, 'b, DB: Database>(
     }
     let all_reverts_init: RevertsInit = HashMap::from([(block, reverts_init)]);
 
-    let execution_outcome = ExecutionOutcome::new_init(
+    let bundle = BundleStateWithReceipts::new_init(
         state_init,
         all_reverts_init,
         contracts.into_iter().collect(),
-        Receipts::default(),
+        Receipts::new(),
         block,
-        Vec::new(),
     );
 
-    execution_outcome.write_to_storage(tx, None, OriginalValuesKnown::Yes)?;
+    bundle.write_to_storage(tx, None, OriginalValuesKnown::Yes)?;
 
     trace!(target: "reth::cli", "Inserted state");
 
@@ -525,8 +523,6 @@ struct GenesisAccountWithAddress {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_genesis::Genesis;
-    use reth_chainspec::{Chain, GOERLI, MAINNET, SEPOLIA};
     use reth_db::DatabaseEnv;
     use reth_db_api::{
         cursor::DbCursorRO,
@@ -534,8 +530,10 @@ mod tests {
         table::{Table, TableRow},
         transaction::DbTx,
     };
-    use reth_primitives::{GOERLI_GENESIS_HASH, MAINNET_GENESIS_HASH, SEPOLIA_GENESIS_HASH};
-    use reth_primitives_traits::IntegerList;
+    use reth_primitives::{
+        Chain, Genesis, IntegerList, GOERLI, GOERLI_GENESIS_HASH, MAINNET, MAINNET_GENESIS_HASH,
+        SEPOLIA, SEPOLIA_GENESIS_HASH,
+    };
     use reth_provider::test_utils::create_test_provider_factory_with_chain_spec;
 
     fn collect_table_entries<DB, T>(

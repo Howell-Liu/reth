@@ -8,8 +8,8 @@
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
 
-mod execution_outcome;
-pub use execution_outcome::*;
+mod bundle;
+pub use bundle::*;
 
 mod chain;
 pub use chain::*;

@@ -1,8 +1,12 @@
 use crate::Tables;
 use metrics::{Gauge, Histogram};
 use reth_metrics::{metrics::Counter, Metrics};
-use rustc_hash::FxHashMap;
-use std::time::{Duration, Instant};
+use rustc_hash::{FxHashMap, FxHasher};
+use std::{
+    collections::HashMap,
+    hash::BuildHasherDefault,
+    time::{Duration, Instant},
+};
 use strum::{EnumCount, EnumIter, IntoEnumIterator};
 
 const LARGE_VALUE_THRESHOLD_BYTES: usize = 4096;
@@ -41,7 +45,7 @@ impl DatabaseEnvMetrics {
     fn generate_operation_handles() -> FxHashMap<(&'static str, Operation), OperationMetrics> {
         let mut operations = FxHashMap::with_capacity_and_hasher(
             Tables::COUNT * Operation::COUNT,
-            Default::default(),
+            BuildHasherDefault::<FxHasher>::default(),
         );
         for table in Tables::ALL {
             for operation in Operation::iter() {
@@ -77,9 +81,9 @@ impl DatabaseEnvMetrics {
     /// Used for tracking various stats for finished transactions (e.g. commit duration).
     fn generate_transaction_outcome_handles(
     ) -> FxHashMap<(TransactionMode, TransactionOutcome), TransactionOutcomeMetrics> {
-        let mut transaction_outcomes = FxHashMap::with_capacity_and_hasher(
+        let mut transaction_outcomes = HashMap::with_capacity_and_hasher(
             TransactionMode::COUNT * TransactionOutcome::COUNT,
-            Default::default(),
+            BuildHasherDefault::<FxHasher>::default(),
         );
         for mode in TransactionMode::iter() {
             for outcome in TransactionOutcome::iter() {

@@ -3,7 +3,10 @@ use alloy_rlp::{BufMut, Encodable};
 use rayon::prelude::*;
 use reth_db_api::database::Database;
 use reth_execution_errors::StorageRootError;
-use reth_primitives::B256;
+use reth_primitives::{
+    trie::{HashBuilder, Nibbles, TrieAccount},
+    B256,
+};
 use reth_provider::{providers::ConsistentDbView, DatabaseProviderFactory, ProviderError};
 use reth_trie::{
     hashed_cursor::{HashedCursorFactory, HashedPostStateCursorFactory},
@@ -11,7 +14,7 @@ use reth_trie::{
     trie_cursor::TrieCursorFactory,
     updates::TrieUpdates,
     walker::TrieWalker,
-    HashBuilder, HashedPostState, Nibbles, StorageRoot, TrieAccount,
+    HashedPostState, StorageRoot,
 };
 use std::collections::HashMap;
 use thiserror::Error;

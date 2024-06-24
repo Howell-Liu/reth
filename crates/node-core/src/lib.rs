@@ -28,6 +28,12 @@ pub mod primitives {
 
 /// Re-export of `reth_rpc_*` crates.
 pub mod rpc {
+
+    /// Re-exported from `reth_rpc_builder`.
+    pub mod builder {
+        pub use reth_rpc_builder::*;
+    }
+
     /// Re-exported from `reth_rpc_types`.
     pub mod types {
         pub use reth_rpc_types::*;

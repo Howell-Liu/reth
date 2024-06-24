@@ -40,7 +40,7 @@ pub mod shareable;
 pub use shareable::ShareableBlockchainTree;
 
 mod bundle;
-pub use bundle::{BundleStateDataRef, ExecutionData};
+pub use bundle::{BundleStateData, BundleStateDataRef};
 
 /// Buffer of not executed blocks.
 pub mod block_buffer;

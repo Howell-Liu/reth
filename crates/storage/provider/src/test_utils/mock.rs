@@ -1,22 +1,23 @@
 use crate::{
     traits::{BlockSource, ReceiptProvider},
     AccountReader, BlockHashReader, BlockIdReader, BlockNumReader, BlockReader, BlockReaderIdExt,
-    ChainSpecProvider, ChangeSetReader, EvmEnvProvider, FullExecutionDataProvider, HeaderProvider,
-    ReceiptProviderIdExt, RequestsProvider, StateProvider, StateProviderBox, StateProviderFactory,
-    StateRootProvider, TransactionVariant, TransactionsProvider, WithdrawalsProvider,
+    ChainSpecProvider, ChangeSetReader, EvmEnvProvider, FullBundleStateDataProvider,
+    HeaderProvider, ReceiptProviderIdExt, RequestsProvider, StateProvider, StateProviderBox,
+    StateProviderFactory, StateRootProvider, TransactionVariant, TransactionsProvider,
+    WithdrawalsProvider,
 };
 use parking_lot::Mutex;
-use reth_chainspec::{ChainInfo, ChainSpec};
 use reth_db_api::models::{AccountBeforeTx, StoredBlockBodyIndices};
 use reth_evm::ConfigureEvmEnv;
 use reth_primitives::{
-    keccak256, Account, Address, Block, BlockHash, BlockHashOrNumber, BlockId, BlockNumber,
-    BlockWithSenders, Bytecode, Bytes, Header, Receipt, SealedBlock, SealedBlockWithSenders,
-    SealedHeader, StorageKey, StorageValue, TransactionMeta, TransactionSigned,
-    TransactionSignedNoHash, TxHash, TxNumber, Withdrawal, Withdrawals, B256, U256,
+    keccak256, trie::AccountProof, Account, Address, Block, BlockHash, BlockHashOrNumber, BlockId,
+    BlockNumber, BlockWithSenders, Bytecode, Bytes, ChainInfo, ChainSpec, Header, Receipt,
+    SealedBlock, SealedBlockWithSenders, SealedHeader, StorageKey, StorageValue, TransactionMeta,
+    TransactionSigned, TransactionSignedNoHash, TxHash, TxNumber, Withdrawal, Withdrawals, B256,
+    U256,
 };
 use reth_storage_errors::provider::{ProviderError, ProviderResult};
-use reth_trie::{updates::TrieUpdates, AccountProof};
+use reth_trie::updates::TrieUpdates;
 use revm::{
     db::BundleState,
     primitives::{BlockEnv, CfgEnvWithHandlerCfg},
@@ -46,7 +47,7 @@ impl Default for MockEthProvider {
             blocks: Default::default(),
             headers: Default::default(),
             accounts: Default::default(),
-            chain_spec: Arc::new(reth_chainspec::ChainSpecBuilder::mainnet().build()),
+            chain_spec: Arc::new(reth_primitives::ChainSpecBuilder::mainnet().build()),
         }
     }
 }
@@ -490,13 +491,6 @@ impl BlockReader for MockEthProvider {
     ) -> ProviderResult<Vec<BlockWithSenders>> {
         Ok(vec![])
     }
-
-    fn sealed_block_with_senders_range(
-        &self,
-        _range: RangeInclusive<BlockNumber>,
-    ) -> ProviderResult<Vec<SealedBlockWithSenders>> {
-        Ok(vec![])
-    }
 }
 
 impl BlockReaderIdExt for MockEthProvider {
@@ -667,7 +661,7 @@ impl StateProviderFactory for MockEthProvider {
 
     fn pending_with_provider<'a>(
         &'a self,
-        _bundle_state_data: Box<dyn FullExecutionDataProvider + 'a>,
+        _bundle_state_data: Box<dyn FullBundleStateDataProvider + 'a>,
     ) -> ProviderResult<StateProviderBox> {
         Ok(Box::new(self.clone()))
     }

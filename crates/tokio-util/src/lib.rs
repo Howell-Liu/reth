@@ -12,6 +12,3 @@ mod event_sender;
 mod event_stream;
 pub use event_sender::EventSender;
 pub use event_stream::EventStream;
-
-#[cfg(feature = "time")]
-pub mod ratelimit;

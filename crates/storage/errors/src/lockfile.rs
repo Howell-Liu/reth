@@ -1,10 +1,8 @@
 use reth_fs_util::FsPathError;
+use thiserror::Error;
 
-#[cfg(not(feature = "std"))]
-use alloc::string::{String, ToString};
-
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 /// Storage lock error.
-#[derive(Debug, Clone, PartialEq, Eq, thiserror_no_std::Error)]
 pub enum StorageLockError {
     /// Write lock taken
     #[error("storage directory is currently in use as read-write by another process: PID {0}")]

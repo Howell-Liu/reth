@@ -19,5 +19,4 @@ reth-engine-primitives.workspace = true
 reth-transaction-pool.workspace = true
 reth-network.workspace = true
 reth-payload-builder.workspace = true
-reth-payload-primitives.workspace = true
 reth-tasks.workspace = true

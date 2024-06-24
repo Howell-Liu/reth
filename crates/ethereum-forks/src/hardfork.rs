@@ -1,14 +1,7 @@
 use alloy_chains::Chain;
-use core::{
-    fmt,
-    fmt::{Display, Formatter},
-    str::FromStr,
-};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-
-#[cfg(not(feature = "std"))]
-use alloc::{format, string::String};
+use std::{fmt::Display, str::FromStr};
 
 /// Represents the consensus type of a blockchain fork.
 ///
@@ -569,7 +562,7 @@ impl FromStr for Hardfork {
 }
 
 impl Display for Hardfork {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")
     }
 }

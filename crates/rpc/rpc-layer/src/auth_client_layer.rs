@@ -1,10 +1,11 @@
 use crate::{Claims, JwtSecret};
-use http::{header::AUTHORIZATION, HeaderValue};
+use http::HeaderValue;
+use hyper::{header::AUTHORIZATION, service::Service};
 use std::{
     task::{Context, Poll},
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
-use tower::{Layer, Service};
+use tower::Layer;
 
 /// A layer that adds a new JWT token to every request using `AuthClientService`.
 #[derive(Debug)]
@@ -40,9 +41,9 @@ impl<S> AuthClientService<S> {
     }
 }
 
-impl<S, B> Service<http::Request<B>> for AuthClientService<S>
+impl<S, B> Service<hyper::Request<B>> for AuthClientService<S>
 where
-    S: Service<http::Request<B>>,
+    S: Service<hyper::Request<B>>,
 {
     type Response = S::Response;
     type Error = S::Error;
@@ -52,7 +53,7 @@ where
         self.inner.poll_ready(cx)
     }
 
-    fn call(&mut self, mut request: http::Request<B>) -> Self::Future {
+    fn call(&mut self, mut request: hyper::Request<B>) -> Self::Future {
         request.headers_mut().insert(AUTHORIZATION, secret_to_bearer_header(&self.secret));
         self.inner.call(request)
     }

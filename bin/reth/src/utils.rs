@@ -2,7 +2,6 @@
 
 use boyer_moore_magiclen::BMByte;
 use eyre::Result;
-use reth_chainspec::ChainSpec;
 use reth_db::{RawTable, TableRawRow};
 use reth_db_api::{
     cursor::{DbCursorRO, DbDupCursorRO},
@@ -12,6 +11,7 @@ use reth_db_api::{
     DatabaseError,
 };
 use reth_fs_util as fs;
+use reth_primitives::ChainSpec;
 use reth_provider::{ChainSpecProvider, ProviderFactory};
 use std::{path::Path, rc::Rc, sync::Arc};
 use tracing::info;

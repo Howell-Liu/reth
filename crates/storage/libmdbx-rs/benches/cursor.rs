@@ -1,9 +1,10 @@
 #![allow(missing_docs)]
 mod utils;
 
+use ::ffi::*;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use pprof::criterion::{Output, PProfProfiler};
-use reth_libmdbx::{ffi::*, *};
+use reth_libmdbx::*;
 use std::ptr;
 use utils::*;
 

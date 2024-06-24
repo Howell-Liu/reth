@@ -3,14 +3,13 @@
 //! Optimism builder support
 
 use alloy_rlp::Encodable;
-use reth_chainspec::ChainSpec;
+use reth_engine_primitives::{BuiltPayload, PayloadBuilderAttributes};
 use reth_payload_builder::EthPayloadBuilderAttributes;
-use reth_payload_primitives::{BuiltPayload, PayloadBuilderAttributes};
 use reth_primitives::{
     revm::config::revm_spec_by_timestamp_after_merge,
     revm_primitives::{BlobExcessGasAndPrice, BlockEnv, CfgEnv, CfgEnvWithHandlerCfg, SpecId},
-    Address, BlobTransactionSidecar, Header, SealedBlock, TransactionSigned, Withdrawals, B256,
-    U256,
+    Address, BlobTransactionSidecar, ChainSpec, Header, SealedBlock, TransactionSigned,
+    Withdrawals, B256, U256,
 };
 use reth_rpc_types::engine::{
     ExecutionPayloadEnvelopeV2, ExecutionPayloadV1, OptimismExecutionPayloadEnvelopeV3,
@@ -180,7 +179,7 @@ pub struct OptimismBuiltPayload {
 
 impl OptimismBuiltPayload {
     /// Initializes the payload with the given initial block.
-    pub const fn new(
+    pub fn new(
         id: PayloadId,
         block: SealedBlock,
         fees: U256,

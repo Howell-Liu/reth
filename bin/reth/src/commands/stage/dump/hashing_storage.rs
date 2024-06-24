@@ -4,8 +4,9 @@ use eyre::Result;
 use reth_db::{tables, DatabaseEnv};
 use reth_db_api::{database::Database, table::TableImporter};
 use reth_node_core::dirs::{ChainPath, DataDirPath};
+use reth_primitives::stage::StageCheckpoint;
 use reth_provider::{providers::StaticFileProvider, ProviderFactory};
-use reth_stages::{stages::StorageHashingStage, Stage, StageCheckpoint, UnwindInput};
+use reth_stages::{stages::StorageHashingStage, Stage, UnwindInput};
 use tracing::info;
 
 pub(crate) async fn dump_hashing_storage_stage<DB: Database>(

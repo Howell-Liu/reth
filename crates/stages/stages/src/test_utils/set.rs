@@ -11,7 +11,7 @@ pub struct TestStages {
 }
 
 impl TestStages {
-    pub const fn new(
+    pub fn new(
         exec_outputs: VecDeque<Result<ExecOutput, StageError>>,
         unwind_outputs: VecDeque<Result<UnwindOutput, StageError>>,
     ) -> Self {

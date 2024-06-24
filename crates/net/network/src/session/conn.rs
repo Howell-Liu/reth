@@ -8,6 +8,7 @@ use reth_eth_wire::{
     multiplex::{ProtocolProxy, RlpxSatelliteStream},
     EthMessage, EthStream, EthVersion, P2PStream,
 };
+use reth_net_common::bandwidth_meter::MeteredStream;
 use std::{
     pin::Pin,
     task::{Context, Poll},
@@ -15,11 +16,11 @@ use std::{
 use tokio::net::TcpStream;
 
 /// The type of the underlying peer network connection.
-pub type EthPeerConnection = EthStream<P2PStream<ECIESStream<TcpStream>>>;
+pub type EthPeerConnection = EthStream<P2PStream<ECIESStream<MeteredStream<TcpStream>>>>;
 
 /// Various connection types that at least support the ETH protocol.
 pub type EthSatelliteConnection =
-    RlpxSatelliteStream<ECIESStream<TcpStream>, EthStream<ProtocolProxy>>;
+    RlpxSatelliteStream<ECIESStream<MeteredStream<TcpStream>>, EthStream<ProtocolProxy>>;
 
 /// Connection types that support the ETH protocol.
 ///
@@ -46,7 +47,7 @@ impl EthRlpxConnection {
 
     /// Consumes this type and returns the wrapped [`P2PStream`].
     #[inline]
-    pub(crate) fn into_inner(self) -> P2PStream<ECIESStream<TcpStream>> {
+    pub(crate) fn into_inner(self) -> P2PStream<ECIESStream<MeteredStream<TcpStream>>> {
         match self {
             Self::EthOnly(conn) => conn.into_inner(),
             Self::Satellite(conn) => conn.into_inner(),
@@ -55,7 +56,7 @@ impl EthRlpxConnection {
 
     /// Returns mutable access to the underlying stream.
     #[inline]
-    pub(crate) fn inner_mut(&mut self) -> &mut P2PStream<ECIESStream<TcpStream>> {
+    pub(crate) fn inner_mut(&mut self) -> &mut P2PStream<ECIESStream<MeteredStream<TcpStream>>> {
         match self {
             Self::EthOnly(conn) => conn.inner_mut(),
             Self::Satellite(conn) => conn.inner_mut(),
@@ -64,7 +65,7 @@ impl EthRlpxConnection {
 
     /// Returns  access to the underlying stream.
     #[inline]
-    pub(crate) const fn inner(&self) -> &P2PStream<ECIESStream<TcpStream>> {
+    pub(crate) const fn inner(&self) -> &P2PStream<ECIESStream<MeteredStream<TcpStream>>> {
         match self {
             Self::EthOnly(conn) => conn.inner(),
             Self::Satellite(conn) => conn.inner(),

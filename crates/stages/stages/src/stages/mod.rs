@@ -42,7 +42,6 @@ mod tests {
     use super::*;
     use crate::test_utils::{StorageKind, TestStageDB};
     use alloy_rlp::Decodable;
-    use reth_chainspec::ChainSpecBuilder;
     use reth_db::{
         mdbx::{cursor::Cursor, RW},
         tables,
@@ -57,7 +56,11 @@ mod tests {
     use reth_evm_ethereum::execute::EthExecutorProvider;
     use reth_exex::ExExManagerHandle;
     use reth_primitives::{
-        address, hex_literal::hex, keccak256, Account, BlockNumber, Bytecode, SealedBlock,
+        address,
+        hex_literal::hex,
+        keccak256,
+        stage::{PipelineTarget, StageCheckpoint, StageId},
+        Account, BlockNumber, Bytecode, ChainSpecBuilder, PruneMode, PruneModes, SealedBlock,
         StaticFileSegment, B256, U256,
     };
     use reth_provider::{
@@ -65,8 +68,7 @@ mod tests {
         ProviderFactory, ProviderResult, ReceiptProvider, StageCheckpointWriter,
         StaticFileProviderFactory, StorageReader,
     };
-    use reth_prune_types::{PruneMode, PruneModes};
-    use reth_stages_api::{ExecInput, PipelineTarget, Stage, StageCheckpoint, StageId};
+    use reth_stages_api::{ExecInput, Stage};
     use reth_testing_utils::generators::{self, random_block, random_block_range, random_receipt};
     use std::{io::Write, sync::Arc};
 

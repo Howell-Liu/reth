@@ -1,8 +1,7 @@
 //! OP transaction pool types
 use parking_lot::RwLock;
-use reth_chainspec::ChainSpec;
 use reth_evm_optimism::RethL1BlockInfo;
-use reth_primitives::{Block, GotExpected, InvalidTransactionError, SealedBlock};
+use reth_primitives::{Block, ChainSpec, GotExpected, InvalidTransactionError, SealedBlock};
 use reth_provider::{BlockReaderIdExt, StateProviderFactory};
 use reth_revm::L1BlockInfo;
 use reth_transaction_pool::{
@@ -203,10 +202,9 @@ pub struct OpL1BlockInfo {
 #[cfg(test)]
 mod tests {
     use crate::txpool::OpTransactionValidator;
-    use reth_chainspec::MAINNET;
     use reth_primitives::{
         Signature, Transaction, TransactionSigned, TransactionSignedEcRecovered, TxDeposit, TxKind,
-        U256,
+        MAINNET, U256,
     };
     use reth_provider::test_utils::MockEthProvider;
     use reth_transaction_pool::{

@@ -7,18 +7,15 @@ use reth_db::tables;
 use reth_db_api::{database::Database, transaction::DbTx};
 use reth_downloaders::{
     file_client::{ChunkedFileReader, DEFAULT_BYTE_LEN_CHUNK_CHAIN_FILE},
-    file_codec_ovm_receipt::HackReceiptFileCodec,
     receipt_file_client::ReceiptFileClient,
 };
-use reth_execution_types::ExecutionOutcome;
 use reth_node_core::version::SHORT_VERSION;
 use reth_optimism_primitives::bedrock_import::is_dup_tx;
-use reth_primitives::{Receipts, StaticFileSegment};
+use reth_primitives::{stage::StageId, Receipts, StaticFileSegment};
 use reth_provider::{
-    OriginalValuesKnown, ProviderFactory, StageCheckpointReader, StateWriter,
-    StaticFileProviderFactory, StaticFileWriter, StatsReader,
+    BundleStateWithReceipts, OriginalValuesKnown, ProviderFactory, StageCheckpointReader,
+    StateWriter, StaticFileProviderFactory, StaticFileWriter, StatsReader,
 };
-use reth_stages::StageId;
 use std::path::{Path, PathBuf};
 use tracing::{debug, error, info, trace};
 
@@ -116,16 +113,10 @@ where
     // open file
     let mut reader = ChunkedFileReader::new(path, chunk_len).await?;
 
-    while let Some(file_client) =
-        reader.next_chunk::<ReceiptFileClient<HackReceiptFileCodec>>().await?
-    {
+    while let Some(file_client) = reader.next_chunk::<ReceiptFileClient>().await? {
         // create a new file client from chunk read from file
-        let ReceiptFileClient {
-            mut receipts,
-            first_block,
-            total_receipts: total_receipts_chunk,
-            ..
-        } = file_client;
+        let ReceiptFileClient { mut receipts, first_block, total_receipts: total_receipts_chunk } =
+            file_client;
 
         // mark these as decoded
         total_decoded_receipts += total_receipts_chunk;
@@ -139,16 +130,15 @@ where
         );
 
         // We're reusing receipt writing code internal to
-        // `ExecutionOutcome::write_to_storage`, so we just use a default empty
+        // `BundleStateWithReceipts::write_to_storage`, so we just use a default empty
         // `BundleState`.
-        let execution_outcome =
-            ExecutionOutcome::new(Default::default(), receipts, first_block, Default::default());
+        let bundled_state = BundleStateWithReceipts::new(Default::default(), receipts, first_block);
 
         let static_file_producer =
             static_file_provider.get_writer(first_block, StaticFileSegment::Receipts)?;
 
         // finally, write the receipts
-        execution_outcome.write_to_storage::<DB::TXMut>(
+        bundled_state.write_to_storage::<DB::TXMut>(
             &tx,
             Some(static_file_producer),
             OriginalValuesKnown::Yes,

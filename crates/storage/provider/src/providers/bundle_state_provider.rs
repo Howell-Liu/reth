@@ -1,39 +1,35 @@
 use crate::{
-    AccountReader, BlockHashReader, ExecutionDataProvider, StateProvider, StateRootProvider,
+    AccountReader, BlockHashReader, BundleStateDataProvider, StateProvider, StateRootProvider,
 };
-use reth_primitives::{Account, Address, BlockNumber, Bytecode, B256};
+use reth_primitives::{trie::AccountProof, Account, Address, BlockNumber, Bytecode, B256};
 use reth_storage_errors::provider::{ProviderError, ProviderResult};
-use reth_trie::{updates::TrieUpdates, AccountProof};
+use reth_trie::updates::TrieUpdates;
 use revm::db::BundleState;
 
-/// A state provider that resolves to data from either a wrapped [`crate::ExecutionOutcome`]
+/// A state provider that either resolves to data in a wrapped [`crate::BundleStateWithReceipts`],
 /// or an underlying state provider.
-///
-/// This struct combines two sources of state data: the execution outcome and an underlying
-/// state provider. It can provide state information by leveraging both the post-block execution
-/// changes and the pre-existing state data.
 #[derive(Debug)]
-pub struct BundleStateProvider<SP: StateProvider, EDP: ExecutionDataProvider> {
+pub struct BundleStateProvider<SP: StateProvider, BSDP: BundleStateDataProvider> {
     /// The inner state provider.
     pub state_provider: SP,
-    /// Block execution data.
-    pub block_execution_data_provider: EDP,
+    /// Bundle state data.
+    pub bundle_state_data_provider: BSDP,
 }
 
-impl<SP: StateProvider, EDP: ExecutionDataProvider> BundleStateProvider<SP, EDP> {
+impl<SP: StateProvider, BSDP: BundleStateDataProvider> BundleStateProvider<SP, BSDP> {
     /// Create new bundle state provider
-    pub const fn new(state_provider: SP, block_execution_data_provider: EDP) -> Self {
-        Self { state_provider, block_execution_data_provider }
+    pub const fn new(state_provider: SP, bundle_state_data_provider: BSDP) -> Self {
+        Self { state_provider, bundle_state_data_provider }
     }
 }
 
 /* Implement StateProvider traits */
 
-impl<SP: StateProvider, EDP: ExecutionDataProvider> BlockHashReader
-    for BundleStateProvider<SP, EDP>
+impl<SP: StateProvider, BSDP: BundleStateDataProvider> BlockHashReader
+    for BundleStateProvider<SP, BSDP>
 {
     fn block_hash(&self, block_number: BlockNumber) -> ProviderResult<Option<B256>> {
-        let block_hash = self.block_execution_data_provider.block_hash(block_number);
+        let block_hash = self.bundle_state_data_provider.block_hash(block_number);
         if block_hash.is_some() {
             return Ok(block_hash)
         }
@@ -49,11 +45,11 @@ impl<SP: StateProvider, EDP: ExecutionDataProvider> BlockHashReader
     }
 }
 
-impl<SP: StateProvider, EDP: ExecutionDataProvider> AccountReader for BundleStateProvider<SP, EDP> {
+impl<SP: StateProvider, BSDP: BundleStateDataProvider> AccountReader
+    for BundleStateProvider<SP, BSDP>
+{
     fn basic_account(&self, address: Address) -> ProviderResult<Option<Account>> {
-        if let Some(account) =
-            self.block_execution_data_provider.execution_outcome().account(&address)
-        {
+        if let Some(account) = self.bundle_state_data_provider.state().account(&address) {
             Ok(account)
         } else {
             self.state_provider.basic_account(address)
@@ -61,11 +57,11 @@ impl<SP: StateProvider, EDP: ExecutionDataProvider> AccountReader for BundleStat
     }
 }
 
-impl<SP: StateProvider, EDP: ExecutionDataProvider> StateRootProvider
-    for BundleStateProvider<SP, EDP>
+impl<SP: StateProvider, BSDP: BundleStateDataProvider> StateRootProvider
+    for BundleStateProvider<SP, BSDP>
 {
     fn state_root(&self, bundle_state: &BundleState) -> ProviderResult<B256> {
-        let mut state = self.block_execution_data_provider.execution_outcome().state().clone();
+        let mut state = self.bundle_state_data_provider.state().state().clone();
         state.extend(bundle_state.clone());
         self.state_provider.state_root(&state)
     }
@@ -74,23 +70,23 @@ impl<SP: StateProvider, EDP: ExecutionDataProvider> StateRootProvider
         &self,
         bundle_state: &BundleState,
     ) -> ProviderResult<(B256, TrieUpdates)> {
-        let mut state = self.block_execution_data_provider.execution_outcome().state().clone();
+        let mut state = self.bundle_state_data_provider.state().state().clone();
         state.extend(bundle_state.clone());
         self.state_provider.state_root_with_updates(&state)
     }
 }
 
-impl<SP: StateProvider, EDP: ExecutionDataProvider> StateProvider for BundleStateProvider<SP, EDP> {
+impl<SP: StateProvider, BSDP: BundleStateDataProvider> StateProvider
+    for BundleStateProvider<SP, BSDP>
+{
     fn storage(
         &self,
         account: Address,
         storage_key: reth_primitives::StorageKey,
     ) -> ProviderResult<Option<reth_primitives::StorageValue>> {
         let u256_storage_key = storage_key.into();
-        if let Some(value) = self
-            .block_execution_data_provider
-            .execution_outcome()
-            .storage(&account, u256_storage_key)
+        if let Some(value) =
+            self.bundle_state_data_provider.state().storage(&account, u256_storage_key)
         {
             return Ok(Some(value))
         }
@@ -99,9 +95,7 @@ impl<SP: StateProvider, EDP: ExecutionDataProvider> StateProvider for BundleStat
     }
 
     fn bytecode_by_hash(&self, code_hash: B256) -> ProviderResult<Option<Bytecode>> {
-        if let Some(bytecode) =
-            self.block_execution_data_provider.execution_outcome().bytecode(&code_hash)
-        {
+        if let Some(bytecode) = self.bundle_state_data_provider.state().bytecode(&code_hash) {
             return Ok(Some(bytecode))
         }
 

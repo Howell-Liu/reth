@@ -1,5 +1,5 @@
 [package]
-name = "example-db-access"
+name = "db-access"
 version = "0.0.0"
 publish = false
 edition.workspace = true
@@ -7,7 +7,6 @@ license.workspace = true
 
 
 [dependencies]
-reth-chainspec.workspace = true
 reth-db.workspace = true
 reth-primitives.workspace = true
 reth-provider.workspace = true

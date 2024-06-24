@@ -18,7 +18,7 @@ pub use error::ECIESError;
 
 mod codec;
 
-use alloy_primitives::{
+use reth_primitives::{
     bytes::{Bytes, BytesMut},
     B512 as PeerId,
 };

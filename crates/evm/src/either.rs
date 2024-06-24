@@ -1,12 +1,11 @@
 //! Helper type that represents one of two possible executor types
 
 use crate::execute::{
-    BatchExecutor, BlockExecutionInput, BlockExecutionOutput, BlockExecutorProvider, Executor,
+    BatchBlockExecutionOutput, BatchExecutor, BlockExecutionInput, BlockExecutionOutput,
+    BlockExecutorProvider, Executor,
 };
 use reth_execution_errors::BlockExecutionError;
-use reth_execution_types::ExecutionOutcome;
-use reth_primitives::{BlockNumber, BlockWithSenders, Receipt};
-use reth_prune_types::PruneModes;
+use reth_primitives::{BlockNumber, BlockWithSenders, PruneModes, Receipt};
 use reth_storage_errors::provider::ProviderError;
 use revm_primitives::db::Database;
 
@@ -76,19 +75,19 @@ where
     A: for<'a> BatchExecutor<
         DB,
         Input<'a> = BlockExecutionInput<'a, BlockWithSenders>,
-        Output = ExecutionOutcome,
+        Output = BatchBlockExecutionOutput,
         Error = BlockExecutionError,
     >,
     B: for<'a> BatchExecutor<
         DB,
         Input<'a> = BlockExecutionInput<'a, BlockWithSenders>,
-        Output = ExecutionOutcome,
+        Output = BatchBlockExecutionOutput,
         Error = BlockExecutionError,
     >,
     DB: Database<Error = ProviderError>,
 {
     type Input<'a> = BlockExecutionInput<'a, BlockWithSenders>;
-    type Output = ExecutionOutcome;
+    type Output = BatchBlockExecutionOutput;
     type Error = BlockExecutionError;
 
     fn execute_and_verify_one(&mut self, input: Self::Input<'_>) -> Result<(), Self::Error> {

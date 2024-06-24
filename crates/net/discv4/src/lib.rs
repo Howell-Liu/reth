@@ -28,7 +28,6 @@ use crate::{
     error::{DecodePacketError, Discv4Error},
     proto::{FindNode, Message, Neighbours, Packet, Ping, Pong},
 };
-use alloy_primitives::{bytes::Bytes, hex, B256};
 use discv5::{
     kbucket,
     kbucket::{
@@ -40,8 +39,8 @@ use discv5::{
 use enr::Enr;
 use parking_lot::Mutex;
 use proto::{EnrRequest, EnrResponse};
-use reth_ethereum_forks::ForkId;
-use reth_network_peers::{pk2id, PeerId};
+use reth_network_types::{pk2id, PeerId};
+use reth_primitives::{bytes::Bytes, hex, ForkId, B256};
 use secp256k1::SecretKey;
 use std::{
     cell::RefCell,
@@ -77,7 +76,7 @@ use node::{kad_key, NodeKey};
 mod table;
 
 // reexport NodeRecord primitive
-pub use reth_network_peers::NodeRecord;
+pub use reth_primitives::NodeRecord;
 
 #[cfg(any(test, feature = "test-utils"))]
 pub mod test_utils;
@@ -214,9 +213,9 @@ impl Discv4 {
     /// ```
     /// # use std::io;
     /// use rand::thread_rng;
-    /// use reth_chainspec::net::NodeRecord;
     /// use reth_discv4::{Discv4, Discv4Config};
-    /// use reth_network_peers::{pk2id, PeerId};
+    /// use reth_network_types::{pk2id, PeerId};
+    /// use reth_primitives::NodeRecord;
     /// use secp256k1::SECP256K1;
     /// use std::{net::SocketAddr, str::FromStr};
     /// # async fn t() -> io::Result<()> {
@@ -2285,11 +2284,9 @@ pub enum DiscoveryUpdate {
 mod tests {
     use super::*;
     use crate::test_utils::{create_discv4, create_discv4_with_config, rng_endpoint, rng_record};
-    use alloy_primitives::hex;
     use alloy_rlp::{Decodable, Encodable};
     use rand::{thread_rng, Rng};
-    use reth_chainspec::net::mainnet_nodes;
-    use reth_ethereum_forks::{EnrForkIdEntry, ForkHash};
+    use reth_primitives::{hex, mainnet_nodes, EnrForkIdEntry, ForkHash};
     use std::future::poll_fn;
 
     #[tokio::test]

@@ -7,26 +7,18 @@
 )]
 #![cfg_attr(not(test), warn(unused_crate_dependencies))]
 #![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
-#![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(not(feature = "std"))]
-extern crate alloc;
-
-use alloy_eips::BlockNumHash;
-use alloy_primitives::B256;
 use reth_consensus::ConsensusError;
-use reth_prune_types::PruneSegmentError;
+use reth_primitives::{revm_primitives::EVMError, BlockNumHash, PruneSegmentError, B256};
 use reth_storage_errors::provider::ProviderError;
-use revm_primitives::EVMError;
-
-#[cfg(not(feature = "std"))]
-use alloc::{boxed::Box, string::String};
+use std::fmt::Display;
+use thiserror::Error;
 
 pub mod trie;
 pub use trie::{StateRootError, StorageRootError};
 
 /// Transaction validation errors
-#[derive(thiserror_no_std::Error, Debug, Clone, PartialEq, Eq)]
+#[derive(Error, Debug, Clone, PartialEq, Eq)]
 pub enum BlockValidationError {
     /// EVM error with transaction hash and message
     #[error("EVM reported invalid transaction ({hash}): {error}")]
@@ -106,7 +98,7 @@ pub enum BlockValidationError {
 }
 
 /// `BlockExecutor` Errors
-#[derive(thiserror_no_std::Error, Debug)]
+#[derive(Error, Debug)]
 pub enum BlockExecutionError {
     /// Validation error, transparently wrapping `BlockValidationError`
     #[error(transparent)]
@@ -126,7 +118,7 @@ pub enum BlockExecutionError {
     /// Transaction error on commit with inner details
     #[error("transaction error on commit: {inner}")]
     CanonicalCommit {
-        /// The inner error message.
+        /// The inner error message
         inner: String,
     },
     /// Error when appending chain on fork is not possible
@@ -143,14 +135,12 @@ pub enum BlockExecutionError {
     #[error(transparent)]
     LatestBlock(#[from] ProviderError),
     /// Arbitrary Block Executor Errors
-    #[cfg(feature = "std")]
     #[error(transparent)]
     Other(Box<dyn std::error::Error + Send + Sync>),
 }
 
 impl BlockExecutionError {
     /// Create a new `BlockExecutionError::Other` variant.
-    #[cfg(feature = "std")]
     pub fn other<E>(error: E) -> Self
     where
         E: std::error::Error + Send + Sync + 'static,
@@ -159,8 +149,7 @@ impl BlockExecutionError {
     }
 
     /// Create a new [`BlockExecutionError::Other`] from a given message.
-    #[cfg(feature = "std")]
-    pub fn msg(msg: impl std::fmt::Display) -> Self {
+    pub fn msg(msg: impl Display) -> Self {
         Self::Other(msg.to_string().into())
     }
 

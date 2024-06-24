@@ -6,15 +6,15 @@ use jsonrpsee::{
         IdProvider,
     },
     types::{error::reject_too_many_subscriptions, ErrorCode, ErrorObject, Request},
-    BoundedSubscriptions, ConnectionId, Extensions, MethodCallback, MethodResponse, MethodSink,
-    Methods, SubscriptionState,
+    BoundedSubscriptions, ConnectionDetails, MethodCallback, MethodResponse, MethodSink, Methods,
+    SubscriptionState,
 };
 use std::sync::Arc;
 
 /// JSON-RPC service middleware.
 #[derive(Clone, Debug)]
 pub struct RpcService {
-    conn_id: ConnectionId,
+    conn_id: usize,
     methods: Methods,
     max_response_body_size: usize,
     cfg: RpcServiceCfg,
@@ -39,7 +39,7 @@ impl RpcService {
     pub(crate) const fn new(
         methods: Methods,
         max_response_body_size: usize,
-        conn_id: ConnectionId,
+        conn_id: usize,
         cfg: RpcServiceCfg,
     ) -> Self {
         Self { methods, max_response_body_size, conn_id, cfg }
@@ -58,7 +58,6 @@ impl<'a> RpcServiceT<'a> for RpcService {
         let params = req.params();
         let name = req.method_name();
         let id = req.id().clone();
-        let extensions = Extensions::new();
 
         match self.methods.method_with_name(name) {
             None => {
@@ -66,16 +65,30 @@ impl<'a> RpcServiceT<'a> for RpcService {
                 ResponseFuture::ready(rp)
             }
             Some((_name, method)) => match method {
-                MethodCallback::Sync(callback) => {
-                    let rp = (callback)(id, params, max_response_body_size, extensions);
-                    ResponseFuture::ready(rp)
-                }
                 MethodCallback::Async(callback) => {
                     let params = params.into_owned();
                     let id = id.into_owned();
 
-                    let fut = (callback)(id, params, conn_id, max_response_body_size, extensions);
+                    let fut = (callback)(id, params, conn_id, max_response_body_size);
                     ResponseFuture::future(fut)
+                }
+                MethodCallback::AsyncWithDetails(callback) => {
+                    let params = params.into_owned();
+                    let id = id.into_owned();
+
+                    // Note: Add the `Request::extensions` to the connection details when available
+                    // here.
+                    let fut = (callback)(
+                        id,
+                        params,
+                        ConnectionDetails::_new(conn_id),
+                        max_response_body_size,
+                    );
+                    ResponseFuture::future(fut)
+                }
+                MethodCallback::Sync(callback) => {
+                    let rp = (callback)(id, params, max_response_body_size);
+                    ResponseFuture::ready(rp)
                 }
                 MethodCallback::Subscription(callback) => {
                     let RpcServiceCfg::CallsAndSubscriptions {
@@ -97,7 +110,7 @@ impl<'a> RpcServiceT<'a> for RpcService {
                             subscription_permit: p,
                         };
 
-                        let fut = callback(id.clone(), params, sink, conn_state, extensions);
+                        let fut = callback(id.clone(), params, sink, conn_state);
                         ResponseFuture::future(fut)
                     } else {
                         let max = bounded_subscriptions.max();
@@ -116,7 +129,7 @@ impl<'a> RpcServiceT<'a> for RpcService {
                         return ResponseFuture::ready(rp);
                     };
 
-                    let rp = callback(id, params, conn_id, max_response_body_size, extensions);
+                    let rp = callback(id, params, conn_id, max_response_body_size);
                     ResponseFuture::ready(rp)
                 }
             },

@@ -11,7 +11,7 @@ use crate::{
     KeepPayloadJobAlive, PayloadJob,
 };
 use futures_util::{future::FutureExt, Stream, StreamExt};
-use reth_payload_primitives::{BuiltPayload, PayloadBuilderAttributes, PayloadTypes};
+use reth_engine_primitives::{BuiltPayload, EngineTypes, PayloadBuilderAttributes};
 use reth_provider::CanonStateNotification;
 use reth_rpc_types::engine::PayloadId;
 use std::{
@@ -31,7 +31,7 @@ type PayloadFuture<P> = Pin<Box<dyn Future<Output = Result<P, PayloadBuilderErro
 
 /// A communication channel to the [`PayloadBuilderService`] that can retrieve payloads.
 #[derive(Debug)]
-pub struct PayloadStore<Engine: PayloadTypes> {
+pub struct PayloadStore<Engine: EngineTypes> {
     inner: PayloadBuilderHandle<Engine>,
 }
 
@@ -39,7 +39,7 @@ pub struct PayloadStore<Engine: PayloadTypes> {
 
 impl<Engine> PayloadStore<Engine>
 where
-    Engine: PayloadTypes + 'static,
+    Engine: EngineTypes + 'static,
 {
     /// Resolves the payload job and returns the best payload that has been built so far.
     ///
@@ -75,7 +75,7 @@ where
 
 impl<Engine> Clone for PayloadStore<Engine>
 where
-    Engine: PayloadTypes,
+    Engine: EngineTypes,
 {
     fn clone(&self) -> Self {
         Self { inner: self.inner.clone() }
@@ -84,7 +84,7 @@ where
 
 impl<Engine> From<PayloadBuilderHandle<Engine>> for PayloadStore<Engine>
 where
-    Engine: PayloadTypes,
+    Engine: EngineTypes,
 {
     fn from(inner: PayloadBuilderHandle<Engine>) -> Self {
         Self { inner }
@@ -95,7 +95,7 @@ where
 ///
 /// This is the API used to create new payloads and to get the current state of existing ones.
 #[derive(Debug)]
-pub struct PayloadBuilderHandle<Engine: PayloadTypes> {
+pub struct PayloadBuilderHandle<Engine: EngineTypes> {
     /// Sender half of the message channel to the [`PayloadBuilderService`].
     to_service: mpsc::UnboundedSender<PayloadServiceCommand<Engine>>,
 }
@@ -104,7 +104,7 @@ pub struct PayloadBuilderHandle<Engine: PayloadTypes> {
 
 impl<Engine> PayloadBuilderHandle<Engine>
 where
-    Engine: PayloadTypes + 'static,
+    Engine: EngineTypes + 'static,
 {
     /// Creates a new payload builder handle for the given channel.
     ///
@@ -190,7 +190,7 @@ where
 
 impl<Engine> Clone for PayloadBuilderHandle<Engine>
 where
-    Engine: PayloadTypes,
+    Engine: EngineTypes,
 {
     fn clone(&self) -> Self {
         Self { to_service: self.to_service.clone() }
@@ -209,7 +209,7 @@ where
 #[must_use = "futures do nothing unless you `.await` or poll them"]
 pub struct PayloadBuilderService<Gen, St, Engine>
 where
-    Engine: PayloadTypes,
+    Engine: EngineTypes,
     Gen: PayloadJobGenerator,
     Gen::Job: PayloadJob<PayloadAttributes = Engine::PayloadBuilderAttributes>,
 {
@@ -235,7 +235,7 @@ const PAYLOAD_EVENTS_BUFFER_SIZE: usize = 20;
 
 impl<Gen, St, Engine> PayloadBuilderService<Gen, St, Engine>
 where
-    Engine: PayloadTypes + 'static,
+    Engine: EngineTypes + 'static,
     Gen: PayloadJobGenerator,
     Gen::Job: PayloadJob<PayloadAttributes = Engine::PayloadBuilderAttributes>,
     <Gen::Job as PayloadJob>::BuiltPayload: Into<Engine::BuiltPayload>,
@@ -326,7 +326,7 @@ where
 
 impl<Gen, St, Engine> PayloadBuilderService<Gen, St, Engine>
 where
-    Engine: PayloadTypes,
+    Engine: EngineTypes,
     Gen: PayloadJobGenerator,
     Gen::Job: PayloadJob<PayloadAttributes = Engine::PayloadBuilderAttributes>,
     <Gen::Job as PayloadJob>::BuiltPayload: Into<Engine::BuiltPayload>,
@@ -352,7 +352,7 @@ where
 
 impl<Gen, St, Engine> Future for PayloadBuilderService<Gen, St, Engine>
 where
-    Engine: PayloadTypes + 'static,
+    Engine: EngineTypes + 'static,
     Gen: PayloadJobGenerator + Unpin + 'static,
     <Gen as PayloadJobGenerator>::Job: Unpin + 'static,
     St: Stream<Item = CanonStateNotification> + Send + Unpin + 'static,
@@ -452,7 +452,7 @@ where
 }
 
 /// Message type for the [`PayloadBuilderService`].
-pub enum PayloadServiceCommand<Engine: PayloadTypes> {
+pub enum PayloadServiceCommand<Engine: EngineTypes> {
     /// Start building a new payload.
     BuildNewPayload(
         Engine::PayloadBuilderAttributes,
@@ -476,7 +476,7 @@ pub enum PayloadServiceCommand<Engine: PayloadTypes> {
 
 impl<Engine> fmt::Debug for PayloadServiceCommand<Engine>
 where
-    Engine: PayloadTypes,
+    Engine: EngineTypes,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {

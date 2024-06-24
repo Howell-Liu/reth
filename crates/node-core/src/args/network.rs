@@ -2,7 +2,6 @@
 
 use crate::version::P2P_CLIENT_VERSION;
 use clap::Args;
-use reth_chainspec::{net::mainnet_nodes, ChainSpec};
 use reth_config::Config;
 use reth_discv4::{DEFAULT_DISCOVERY_ADDR, DEFAULT_DISCOVERY_PORT};
 use reth_discv5::{
@@ -18,7 +17,7 @@ use reth_network::{
     },
     HelloMessageWithProtocols, NetworkConfigBuilder, SessionsConfig,
 };
-use reth_network_peers::TrustedPeer;
+use reth_primitives::{mainnet_nodes, ChainSpec, TrustedPeer};
 use secp256k1::SecretKey;
 use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
@@ -159,7 +158,7 @@ impl NetworkArgs {
             )
             .peer_config(peers_config)
             .boot_nodes(chain_bootnodes.clone())
-            .chain_spec(chain_spec)
+            .chain_spec(chain_spec.clone())
             .transactions_manager_config(transactions_manager_config)
             // Configure node identity
             .apply(|builder| {
@@ -173,7 +172,13 @@ impl NetworkArgs {
             // apply discovery settings
             .apply(|builder| {
                 let rlpx_socket = (self.addr, self.port).into();
-                self.discovery.apply_to_builder(builder, rlpx_socket)
+                let mut builder = self.discovery.apply_to_builder(builder, rlpx_socket);
+
+                if chain_spec.is_optimism() && !self.discovery.disable_discovery {
+                    builder = builder.discovery_v5(reth_discv5::Config::builder(rlpx_socket));
+                }
+
+                builder
             })
             // modify discv5 settings if enabled in previous step
             .map_discv5_config_builder(|builder| {
@@ -206,7 +211,7 @@ impl NetworkArgs {
 
     /// Sets the p2p and discovery ports to zero, allowing the OD to assign a random unused port
     /// when network components bind to sockets.
-    pub const fn with_unused_ports(mut self) -> Self {
+    pub fn with_unused_ports(mut self) -> Self {
         self = self.with_unused_p2p_port();
         self.discovery = self.discovery.with_unused_discovery_port();
         self

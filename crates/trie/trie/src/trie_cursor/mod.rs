@@ -1,6 +1,10 @@
-use crate::{updates::TrieKey, BranchNodeCompact, Nibbles};
+use crate::updates::TrieKey;
 use reth_db::DatabaseError;
-use reth_primitives::B256;
+use reth_primitives::{
+    trie::{BranchNodeCompact, Nibbles},
+    B256,
+};
+
 mod database_cursors;
 mod subnode;
 

@@ -1,9 +1,10 @@
 use reth_primitives::{
-    keccak256, Account, Address, BlockNumber, Bytecode, Bytes, StorageKey, B256, U256,
+    keccak256, trie::AccountProof, Account, Address, BlockNumber, Bytecode, Bytes, StorageKey,
+    B256, U256,
 };
 use reth_storage_api::{AccountReader, BlockHashReader, StateProvider, StateRootProvider};
 use reth_storage_errors::provider::ProviderResult;
-use reth_trie::{updates::TrieUpdates, AccountProof};
+use reth_trie::updates::TrieUpdates;
 use revm::db::BundleState;
 use std::collections::HashMap;
 

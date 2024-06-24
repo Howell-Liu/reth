@@ -1,5 +1,4 @@
-use alloy_primitives::BlockNumber;
-use reth_primitives_traits::SealedHeader;
+use reth_primitives::{BlockNumber, SealedHeader};
 
 /// Determines the control flow during pipeline execution.
 ///

@@ -1,4 +1,3 @@
-use reth_chainspec::MAINNET;
 use reth_db::{
     tables,
     test_utils::{
@@ -17,7 +16,7 @@ use reth_db_api::{
 };
 use reth_primitives::{
     keccak256, Account, Address, BlockNumber, Receipt, SealedBlock, SealedHeader,
-    StaticFileSegment, StorageEntry, TxHash, TxNumber, B256, U256,
+    StaticFileSegment, StorageEntry, TxHash, TxNumber, B256, MAINNET, U256,
 };
 use reth_provider::{
     providers::{StaticFileProvider, StaticFileProviderRWRefMut, StaticFileWriter},
@@ -350,7 +349,9 @@ impl TestStageDB {
                 let mut writer = provider.latest_writer(StaticFileSegment::Receipts)?;
                 let res = receipts.into_iter().try_for_each(|(block_num, receipts)| {
                     writer.increment_block(StaticFileSegment::Receipts, block_num)?;
-                    writer.append_receipts(receipts.into_iter().map(Ok))?;
+                    for (tx_num, receipt) in receipts {
+                        writer.append_receipt(tx_num, receipt)?;
+                    }
                     Ok(())
                 });
                 writer.commit_without_sync_all()?;

@@ -1,14 +1,14 @@
-//! [`ExecutionDataProvider`] implementations used by the tree.
+//! [`BundleStateDataProvider`] implementations used by the tree.
 
 use reth_primitives::{BlockHash, BlockNumber, ForkBlock};
-use reth_provider::{BlockExecutionForkProvider, ExecutionDataProvider, ExecutionOutcome};
+use reth_provider::{BundleStateDataProvider, BundleStateForkProvider, BundleStateWithReceipts};
 use std::collections::BTreeMap;
 
-/// Structure that combines references of required data to be a [`ExecutionDataProvider`].
+/// Structure that combines references of required data to be a [`BundleStateDataProvider`].
 #[derive(Clone, Debug)]
 pub struct BundleStateDataRef<'a> {
-    /// The execution outcome after execution of one or more transactions and/or blocks.
-    pub execution_outcome: &'a ExecutionOutcome,
+    /// The wrapped state after execution of one or more transactions and/or blocks.
+    pub state: &'a BundleStateWithReceipts,
     /// The blocks in the sidechain.
     pub sidechain_block_hashes: &'a BTreeMap<BlockNumber, BlockHash>,
     /// The blocks in the canonical chain.
@@ -17,9 +17,9 @@ pub struct BundleStateDataRef<'a> {
     pub canonical_fork: ForkBlock,
 }
 
-impl<'a> ExecutionDataProvider for BundleStateDataRef<'a> {
-    fn execution_outcome(&self) -> &ExecutionOutcome {
-        self.execution_outcome
+impl<'a> BundleStateDataProvider for BundleStateDataRef<'a> {
+    fn state(&self) -> &BundleStateWithReceipts {
+        self.state
     }
 
     fn block_hash(&self, block_number: BlockNumber) -> Option<BlockHash> {
@@ -32,17 +32,17 @@ impl<'a> ExecutionDataProvider for BundleStateDataRef<'a> {
     }
 }
 
-impl<'a> BlockExecutionForkProvider for BundleStateDataRef<'a> {
+impl<'a> BundleStateForkProvider for BundleStateDataRef<'a> {
     fn canonical_fork(&self) -> ForkBlock {
         self.canonical_fork
     }
 }
 
-/// Structure that owns the relevant data needs to be a [`ExecutionDataProvider`]
+/// Structure that owns the relevant data needs to be a [`BundleStateDataProvider`]
 #[derive(Clone, Debug)]
-pub struct ExecutionData {
-    /// Execution outcome.
-    pub execution_outcome: ExecutionOutcome,
+pub struct BundleStateData {
+    /// Post state with changes
+    pub state: BundleStateWithReceipts,
     /// Parent block hashes needs for evm BLOCKHASH opcode.
     /// NOTE: it does not mean that all hashes are there but all until finalized are there.
     /// Other hashes can be obtained from provider
@@ -51,9 +51,9 @@ pub struct ExecutionData {
     pub canonical_fork: ForkBlock,
 }
 
-impl ExecutionDataProvider for ExecutionData {
-    fn execution_outcome(&self) -> &ExecutionOutcome {
-        &self.execution_outcome
+impl BundleStateDataProvider for BundleStateData {
+    fn state(&self) -> &BundleStateWithReceipts {
+        &self.state
     }
 
     fn block_hash(&self, block_number: BlockNumber) -> Option<BlockHash> {
@@ -61,7 +61,7 @@ impl ExecutionDataProvider for ExecutionData {
     }
 }
 
-impl BlockExecutionForkProvider for ExecutionData {
+impl BundleStateForkProvider for BundleStateData {
     fn canonical_fork(&self) -> ForkBlock {
         self.canonical_fork
     }

@@ -1,4 +1,5 @@
-use std::{ffi::c_int, result};
+use libc::c_int;
+use std::result;
 
 /// An MDBX result.
 pub type Result<T> = result::Result<T, Error>;

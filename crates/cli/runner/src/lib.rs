@@ -11,7 +11,7 @@
 //! Entrypoint for running commands.
 
 use reth_tasks::{TaskExecutor, TaskManager};
-use std::{future::Future, pin::pin, sync::mpsc, time::Duration};
+use std::{future::Future, pin::pin};
 use tracing::{debug, error, trace};
 
 /// Executes CLI commands.
@@ -52,25 +52,16 @@ impl CliRunner {
             // after the command has finished or exit signal was received we shutdown the task
             // manager which fires the shutdown signal to all tasks spawned via the task
             // executor and awaiting on tasks spawned with graceful shutdown
-            task_manager.graceful_shutdown_with_timeout(Duration::from_secs(5));
+            task_manager.graceful_shutdown_with_timeout(std::time::Duration::from_secs(10));
         }
 
-        // `drop(tokio_runtime)` would block the current thread until its pools
-        // (including blocking pool) are shutdown. Since we want to exit as soon as possible, drop
-        // it on a separate thread and wait for up to 5 seconds for this operation to
-        // complete.
-        let (tx, rx) = mpsc::channel();
+        // drop the tokio runtime on a separate thread because drop blocks until its pools
+        // (including blocking pool) are shutdown. In other words `drop(tokio_runtime)` would block
+        // the current thread but we want to exit right away.
         std::thread::Builder::new()
             .name("tokio-runtime-shutdown".to_string())
-            .spawn(move || {
-                drop(tokio_runtime);
-                let _ = tx.send(());
-            })
+            .spawn(move || drop(tokio_runtime))
             .unwrap();
-
-        let _ = rx.recv_timeout(Duration::from_secs(5)).inspect_err(|err| {
-            debug!(target: "reth::cli", %err, "tokio runtime shutdown timed out");
-        });
 
         command_res
     }
