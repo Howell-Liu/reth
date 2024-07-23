@@ -30,6 +30,8 @@ pub struct Signature {
     /// WARNING: if it's deprecated in favor of `alloy_primitives::Signature` be sure that parity
     /// storage deser matches.
     pub odd_y_parity: bool,
+    //
+    // pub public_key: PublicKey,
 }
 
 impl Signature {

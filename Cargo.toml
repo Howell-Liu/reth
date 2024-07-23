@@ -9,6 +9,7 @@ exclude = [".github/"]
 
 [workspace]
 members = [
+    "crates/falcon/",
     "bin/reth-bench/",
     "bin/reth/",
     "crates/blockchain-tree/",
@@ -265,6 +266,8 @@ lto = "fat"
 codegen-units = 1
 
 [workspace.dependencies]
+
+falcon = {path = "crates/falcon"}
 # reth
 reth = { path = "bin/reth" }
 reth-bench = { path = "bin/reth-bench" }

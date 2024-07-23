@@ -7,7 +7,7 @@ pub(crate) mod secp256k1 {
         Message, PublicKey, SecretKey, SECP256K1,
     };
     use revm_primitives::{B256, U256};
-
+    use falcon::falcon512;
     /// Recovers the address of the sender using secp256k1 pubkey recovery.
     ///
     /// Converts the public key into an ethereum address by hashing the public key with keccak256.
@@ -49,8 +49,18 @@ pub(crate) mod secp256k1 {
 
 #[cfg(test)]
 mod tests {
+    use rand::thread_rng;
     use super::*;
     use crate::{address, hex};
+    use falcon::falcon512;
+    use rand::Rng;
+
+
+    #[test]
+    fn falcon() {
+        let (sk, pk) = falcon512::keygen(thread_rng().gen());
+        eprintln!("{:?}", pk);
+    }
 
     #[test]
     fn sanity_ecrecover_call() {
