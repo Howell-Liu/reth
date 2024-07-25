@@ -43,11 +43,6 @@ jobs:
             --locked --features "asm-keccak ${{ matrix.network }}" \
             --workspace --exclude ef-tests \
             -E "kind(test)"
-      - if: matrix.network == 'optimism'
-        name: Run tests
-        run: |
-          cargo nextest run \
-            --locked -p reth-node-optimism --features "optimism"
 
   integration-success:
     name: integration success
