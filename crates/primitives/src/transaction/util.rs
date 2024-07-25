@@ -37,12 +37,23 @@ pub(crate) mod secp256k1 {
         Ok(signature)
     }
 
+    // pub fn sign_message_falcon(secret: falcon512::SecretKey, message: B256) -> Result<falcon512::Signature, Error> {
+    //     let message_refactor: B256 = message;
+    //     let signature = falcon512::sign(message, secret);
+    //     Ok(signature)
+    // }
+
     /// Converts a public key into an ethereum address by hashing the encoded public key with
     /// keccak256.
     pub fn public_key_to_address(public: PublicKey) -> Address {
         // strip out the first byte because that should be the SECP256K1_TAG_PUBKEY_UNCOMPRESSED
         // tag returned by libsecp's uncompressed pubkey serialization
         let hash = keccak256(&public.serialize_uncompressed()[1..]);
+        Address::from_slice(&hash[12..])
+    }
+
+    pub fn public_key_to_address_falcon(public: falcon512::PublicKey) -> Address {
+        let hash = keccak256(&public.to_bytes());
         Address::from_slice(&hash[12..])
     }
 }
@@ -54,12 +65,15 @@ mod tests {
     use crate::{address, hex};
     use falcon::falcon512;
     use rand::Rng;
+    use crate::transaction::util::secp256k1::public_key_to_address_falcon;
 
 
     #[test]
     fn falcon() {
-        let (sk, pk) = falcon512::keygen(thread_rng().gen());
+        let (_, pk) = falcon512::keygen(thread_rng().gen());
         eprintln!("{:?}", pk);
+        let address = public_key_to_address_falcon(pk);
+        eprintln!("{:?}", address);
     }
 
     #[test]
